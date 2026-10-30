@@ -53,6 +53,16 @@ await foto('03-lendo.png');
 await pag.waitForFunction(() => terrario.criaturas[0].estado === 'vagando', null, { timeout: 90000 });
 await pag.waitForTimeout(600);
 await foto('04-depois.png');
+// desligar no meio da cacada: tem de sair na hora, sem travar
+await pag.fill('#tema', 'miriapode');
+await pag.click('#btn-cacar');
+await pag.waitForFunction(() => terrario.criaturas[0].estado === 'lendo', null, { timeout: 30000 });
+await pag.click('.chip:has-text("Xavier") .liga');
+await pag.waitForTimeout(500);
+if ((await ligadas()).includes('xavier')) throw new Error('Xavier nao desligou durante a cacada');
+await pag.click('.chip:has-text("Xavier") .liga');
+await pag.waitForTimeout(300);
+if (!(await ligadas()).includes('xavier')) throw new Error('Xavier nao religou');
 await pag.click('#btn-saber');
 await pag.click('.item summary');
 await pag.waitForTimeout(300);

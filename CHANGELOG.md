@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 (2026-10-30)
+
+- Corrigido: criatura podia ficar rodando em volta de uma palavra e a caçada nunca terminava, o que travava a chave de desligar. Agora ela freia quando o ponto está de lado e pula o ponto depois de 1,5 s.
+- Desligar uma criatura no meio da caçada cancela a caçada na hora.
+
 ## 0.2.0 (2026-10-30)
 
 - Elenco: uma criatura para cada agente do Brain, com cor, tamanho, ritmo e tema favorito.
