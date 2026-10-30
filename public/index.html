@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Terrário</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="tela" aria-label="Terrário com criaturas digitais"></canvas>
+
+  <header class="marca">
+    <h1>TERRÁRIO</h1>
+    <p>criaturas que caçam conhecimento</p>
+  </header>
+
+  <div class="dica" id="dica">clique numa criatura para cutucar · solte um link nela para ela ler</div>
+
+  <section class="doca" aria-label="Controles">
+    <div class="criaturas" id="lista"></div>
+    <form class="caca" id="form-caca">
+      <span class="alvo" id="alvo"></span>
+      <input id="tema" name="tema" autocomplete="off" maxlength="120" placeholder="tema para caçar… ex.: centopeias, auroras, polvos">
+      <button type="submit" id="btn-cacar">Caçar</button>
+    </form>
+    <div class="acoes">
+      <button type="button" id="btn-nova" title="Chocar uma criatura nova">+ criatura</button>
+      <button type="button" id="btn-batizar" title="Dar outro nome à criatura escolhida">batizar</button>
+      <button type="button" id="btn-saber" class="saber">conhecimento <b id="qtd">0</b></button>
+    </div>
+  </section>
+
+  <aside class="gaveta" id="gaveta" aria-label="Conhecimento gravado" hidden>
+    <header>
+      <h2>Conhecimento</h2>
+      <button type="button" id="btn-fechar" aria-label="Fechar">×</button>
+    </header>
+    <p class="sub" id="gaveta-sub">o que as criaturas trouxeram, em markdown</p>
+    <div id="itens"></div>
+  </aside>
+
+  <div class="aviso" id="aviso" role="status"></div>
+
+  <script type="module" src="terrario.js"></script>
+</body>
+</html>
