@@ -171,6 +171,7 @@ class Criatura {
     this.legenda = '';
     this.susto = 0;
     this.lendo = 0;
+    this.noAlvo = 0;
   }
 
   get cabeca() { return this.segs[0]; }
@@ -193,9 +194,13 @@ class Criatura {
       velAlvo = 55; giro = 2.6;
     } else {
       if (this.rota.length) {
-        this.alvo = this.rota[0];
-        if (dist(c, this.alvo) < 12) { this.rota.shift(); this.alvo = this.rota[0] ?? null; }
-        velAlvo = 175; giro = 7;
+        if (this.alvo !== this.rota[0]) { this.alvo = this.rota[0]; this.noAlvo = 0; }
+        this.noAlvo += dt;
+        // chegou, ou ficou rodando em volta do ponto: segue para o proximo
+        if (dist(c, this.alvo) < 12 || this.noAlvo > 1.5) { this.rota.shift(); this.alvo = this.rota[0] ?? null; this.noAlvo = 0; }
+        // freia quando o ponto esta de lado ou atras, para nao orbitar
+        const desvio = this.alvo ? Math.abs(angDif(this.ang, Math.atan2(this.alvo.y - c.y, this.alvo.x - c.x))) : 0;
+        velAlvo = 175 * Math.max(0.2, Math.cos(Math.min(desvio, Math.PI / 2))); giro = 7;
       } else if (!this.alvo || dist(c, this.alvo) < 40 || Math.random() < dt * 0.05) {
         this.alvo = { x: rand(120, W - 120), y: rand(120, H - 200) };
       }
@@ -599,7 +604,8 @@ function alternar(id, escolherDepois = false) {
   const d = elenco.find(x => x.id === id);
   const viva = criaturas.find(c => c.id === id);
   if (viva) {
-    if (viva.estado !== 'vagando') return avisar(`${viva.nome} esta cacando; desligo quando ela voltar.`);
+    // desligar no meio de uma cacada cancela a cacada
+    if (viva.estado !== 'vagando') { viva.cancelada = true; viva.rota = []; }
     criaturas = criaturas.filter(c => c !== viva);
     for (const s of viva.segs.filter((_, i) => i % 3 === 0)) ondas.push({ x: s.x, y: s.y, r: 2, cor: viva.cor, vida: 0.7 });
     d.ativa = false;
@@ -673,7 +679,7 @@ async function cacar(c, pedido) {
   }
   // fareja pelo menos um pouquinho, para dar tempo de ver
   await new Promise(r => setTimeout(r, Math.max(0, 1600 - (performance.now() - inicio))));
-  botaoCacar.disabled = false;
+  botaoCacar.disabled = !escolhida;
   for (const pagina of achado.paginas.slice(0, 3)) {
     c.estado = 'lendo';
     c.legenda = `lendo: ${pagina.titulo.slice(0, 28)}`;
@@ -684,7 +690,9 @@ async function cacar(c, pedido) {
     c.rota = [{ x: f.x - 10, y: f.y + 60 }, ...f.rota];
     await esperar(() => !c.rota.length);
     f.saindo = true;
+    if (c.cancelada) break;
   }
+  if (c.cancelada) { c.cancelada = false; c.estado = 'vagando'; c.legenda = ''; return; }
   c.estado = 'digerindo';
   c.legenda = 'digerindo…';
   desenhaLista();
