@@ -42,10 +42,17 @@ await foto('01b-chaves.png');
 await pag.click('#btn-previa');
 await pag.frameLocator('#previa-quadro').locator('body').waitFor();
 await pag.waitForFunction(() => document.getElementById('previa-quadro').contentWindow.pronto === true);
-const atores = await pag.evaluate(() => document.getElementById('previa-quadro').contentWindow.resultado.atores);
-if (atores.some(a => !['Xavier', 'Mimir', 'Batman', 'Stark'].includes(a))) throw new Error('previa com criatura desligada: ' + atores);
-await foto('01c-previa-bloqueio.png');
+await pag.waitForTimeout(4000);
+const cena = await pag.evaluate(() => document.getElementById('previa-quadro').contentWindow.protetor.cena);
+console.log('previa do protetor:', cena);
+await foto('01c-previa-protetor.png');
+await pag.click('#previa-outra');
+await pag.waitForTimeout(3000);
+if (!(await pag.evaluate(() => document.getElementById('previa-quadro').contentWindow.protetor.cena)).includes('>')) throw new Error('proximo movimento nao fundiu');
 await pag.click('#previa-fechar');
+// fora do app, as chaves dos modos so avisam
+await pag.click('#btn-area');
+if (await pag.getAttribute('#btn-area', 'aria-checked') !== 'false') throw new Error('chave da area ligou fora do app');
 await pag.fill('#tema', 'centopeia');
 const inicio = Date.now();
 await pag.click('#btn-cacar');
@@ -83,6 +90,31 @@ await pag.click('#btn-saber');
 await pag.click('.item summary');
 await pag.waitForTimeout(300);
 await foto('05-conhecimento.png');
+
+// protetor de tela: cada movimento sozinho, sem criaturas
+const movimentos = ['fluxo', 'aurora', 'rede', 'harmonografo', 'mandala', 'tunel', 'ondas'];
+const quadro = await nav.newPage({ viewport: { width: 1600, height: 900 } });
+quadro.on('pageerror', e => erros.push(e.message));
+for (const [i, so] of movimentos.entries()) {
+  await quadro.goto(`${url}/protetor.html?so=${so}&semente=captura-${i}`);
+  await quadro.waitForTimeout(so === 'harmonografo' || so === 'mandala' ? 12000 : 6000);
+  await quadro.screenshot({ path: join(saida, `06-protetor-${i + 1}-${so}.png`) });
+  console.log('captura protetor', so);
+}
+// imagem parada da tela de bloqueio: um instante do protetor, sem relogio
+await quadro.goto(`${url}/bloqueio.html?semente=captura&w=1920&h=1080`);
+await quadro.waitForFunction(() => window.pronto === true, null, { timeout: 60000 });
+await quadro.screenshot({ path: join(saida, '07-imagem-bloqueio.png') });
+// area de trabalho: criaturas sobre um fundo que imita o Windows
+await quadro.goto(`${url}/area.html?fundo=1&elenco=xavier,mimir,batman,stark,iris`);
+await quadro.waitForTimeout(5000);
+if (await quadro.evaluate(() => area.criaturas.length) !== 5) throw new Error('area de trabalho sem as 5 criaturas');
+await quadro.mouse.move(800, 450);
+await quadro.waitForTimeout(1500);
+await quadro.screenshot({ path: join(saida, '08-area-de-trabalho.png') });
+await quadro.evaluate(() => area.definir([{ id: 'stark', nome: 'Stark', cor: '#ff3b3b', n: 13, vel: 1.3 }]));
+await quadro.waitForTimeout(300);
+if (await quadro.evaluate(() => area.criaturas.map(c => c.id).join()) !== 'stark') throw new Error('area nao desligou as criaturas');
 
 await nav.close(); app.close(); wiki.close();
 await rm(pasta, { recursive: true, force: true });

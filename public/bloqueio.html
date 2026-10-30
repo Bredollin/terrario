@@ -3,29 +3,27 @@
 <head>
   <meta charset="utf-8">
   <title>Tela de bloqueio</title>
-  <style>html, body { margin: 0; background: #010207; overflow: hidden; } canvas { display: block; width: 100vw; height: 100vh; object-fit: cover; }</style>
+  <style>html, body { margin: 0; background: #02030a; overflow: hidden; } canvas { display: block; width: 100vw; height: 100vh; object-fit: cover; }</style>
 </head>
 <body>
   <canvas id="c"></canvas>
   <script type="module">
-    // ?semente=...&w=1920&h=1080&termos=a,b  (sem termos: le os do conhecimento)
-    import { pintar } from './pintura.js';
-    import { ELENCO } from './elenco.js';
+    // Imagem parada para a tela de bloqueio do Windows (ela nao aceita animacao):
+    // um instante do protetor de tela, sem criaturas e sem relogio (o Windows ja
+    // poe o dele). ?semente=...&w=1920&h=1080
+    import { criarProtetor } from './protetor.js';
     const q = new URLSearchParams(location.search);
     const c = document.getElementById('c');
     c.width = Number(q.get('w')) || innerWidth * devicePixelRatio;
     c.height = Number(q.get('h')) || innerHeight * devicePixelRatio;
-    let termos = (q.get('termos') || '').split(',').filter(Boolean);
-    if (!termos.length && location.protocol !== 'file:') {
-      try {
-        const itens = await (await fetch('/api/conhecimento')).json();
-        termos = itens.flatMap(i => [...(/## Termos\s+([^\n]+)/.exec(i.texto)?.[1] ?? '').matchAll(/`([^`]+)`/g)].map(m => m[1])).slice(0, 30);
-      } catch {}
+    const p = criarProtetor(c, { semente: q.get('semente') || new Date().toISOString(), relogio: false });
+    // deixa a animacao correr uns segundos para os rastros se formarem
+    const segundos = 7 + (Math.random() * 5 | 0);
+    for (let i = 0; i < segundos * 30; i++) {
+      p.quadro(1 / 30);
+      if (i % 30 === 29) await new Promise(r => setTimeout(r));
     }
-    // so as criaturas ligadas aparecem (sem lista: todas)
-    const ids = (q.get('elenco') || '').split(',').filter(Boolean);
-    const elenco = ids.length ? ELENCO.filter(a => ids.includes(a.id)) : ELENCO;
-    window.resultado = pintar(c, { semente: q.get('semente') || new Date().toISOString(), termos, elenco: elenco.length ? elenco : ELENCO });
+    window.resultado = { cena: p.cena };
     window.pronto = true;
   </script>
 </body>

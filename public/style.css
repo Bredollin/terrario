@@ -62,9 +62,12 @@ button.mini { padding: 4px 9px; font-size: 10.5px; border-radius: 8px; }
 .chip .liga[aria-checked="true"] { background: color-mix(in srgb, var(--c) 28%, transparent); border-color: var(--c); }
 .chip .liga[aria-checked="true"]::after { transform: translateX(12px); background: var(--c); box-shadow: 0 0 10px var(--c); }
 .chip[aria-current="true"] { border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
-.bloqueio::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #5d6488; vertical-align: 0; }
-.bloqueio[aria-checked="true"] { border-color: #b18cff; background: rgba(177, 140, 255, .14); }
-.bloqueio[aria-checked="true"]::before { background: #b18cff; box-shadow: 0 0 10px #b18cff; }
+/* chaves dos modos: bolinha apagada / acesa na cor do modo */
+.chave { --k: #b18cff; white-space: nowrap; }
+.chave::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #5d6488; vertical-align: 0; transition: background .2s, box-shadow .2s; }
+button.mini.chave::before { width: 6px; height: 6px; margin-right: 6px; vertical-align: 1px; }
+.chave[aria-checked="true"] { border-color: var(--k); background: color-mix(in srgb, var(--k) 14%, transparent); }
+.chave[aria-checked="true"]::before { background: var(--k); box-shadow: 0 0 10px var(--k); }
 .previa { position: fixed; inset: 0; background: rgba(1, 2, 7, .85); display: grid; place-items: center; z-index: 10; }
 .previa[hidden] { display: none; }
 .previa iframe { width: min(92vw, calc(82vh * 16 / 9)); aspect-ratio: 16 / 9; border: 1px solid var(--borda); border-radius: 14px; background: #010207; box-shadow: 0 30px 90px rgba(0,0,0,.7); }

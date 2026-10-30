@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Terrário · protetor de tela</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #02030a; overflow: hidden; cursor: none; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <script type="module">
+    // ?semente=...&relogio=0&so=aurora&duracao=20
+    // Dentro do protetor de tela, qualquer tecla, clique ou mexida no mouse fecha.
+    import { criarProtetor } from './protetor.js';
+    const q = new URLSearchParams(location.search);
+    const c = document.getElementById('c');
+    // ate 1,5x de resolucao: nitido em 4K sem pesar
+    const escala = Math.min(1.5, devicePixelRatio || 1);
+    let p;
+    function montar() {
+      c.width = Math.round(innerWidth * escala); c.height = Math.round(innerHeight * escala);
+      p = criarProtetor(c, { semente: q.get('semente') || new Date().toISOString(), relogio: q.get('relogio') !== '0',
+        so: q.get('so'), duracao: q.has('duracao') ? Number(q.get('duracao')) : null });
+      window.protetor = p;
+    }
+    montar();
+    let redim;
+    addEventListener('resize', () => { clearTimeout(redim); redim = setTimeout(montar, 300); });
+    let antes = performance.now();
+    function quadro(agora) {
+      p.quadro(Math.min(0.05, (agora - antes) / 1000));
+      antes = agora;
+      requestAnimationFrame(quadro);
+    }
+    requestAnimationFrame(quadro);
+    addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === ' ') p.proximo(); });
+    const saida = window.terrarioProtetor;
+    if (saida) {
+      let origem = null;
+      const sair = () => saida.sair();
+      addEventListener('mousemove', e => {
+        origem ??= { x: e.screenX, y: e.screenY };
+        if (Math.hypot(e.screenX - origem.x, e.screenY - origem.y) > 12) sair();
+      });
+      addEventListener('mousedown', sair);
+      addEventListener('keydown', sair);
+      addEventListener('wheel', sair);
+      addEventListener('touchstart', sair);
+    }
+    window.pronto = true;
+  </script>
+</body>
+</html>
