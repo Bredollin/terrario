@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 (2026-10-30)
+
+- Área de trabalho: as criaturas ligadas saem do terrário (não aparecem mais duplicadas dentro e fora); o terrário mostra um aviso. A janela transparente aparece ao carregar a página (antes dependia do `ready-to-show`, que pode não vir no Windows) e fica no nível mais alto.
+- Leitura sem folha na tela: a criatura lê andando e solta os termos; passar o mouse em cima dela mostra um cartão com o título, o trecho que está lendo e o progresso.
+- Busca na web livre (DuckDuckGo HTML, sem chave) junto com a Wikipedia: até 2 páginas da web + Wikipedia por caçada; se uma fonte falhar, vale a outra. `TERRARIO_BUSCA` troca o buscador.
+
 ## 0.3.0 (2026-10-30)
 
 - **Área de trabalho**: as criaturas ligadas saem do terrário e andam pela tela toda, numa janela transparente, sempre no topo, que não pega foco e deixa o clique passar. Fogem do mouse para não atrapalhar. Chave no app (*soltar na área de trabalho*) e na bandeja; cada criatura continua com a sua chave. Para de desenhar com o PC bloqueado.

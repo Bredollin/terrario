@@ -77,7 +77,7 @@ export class Criatura {
   }
 
   atualizar(dt) {
-    const { W, H, tempo, mouse, folhas, fugir } = this.mundo;
+    const { W, H, tempo, mouse, folhas = [], fugir } = this.mundo;
     const c = this.cabeca;
     this.susto = Math.max(0, this.susto - dt * 0.9);
     let velAlvo = 42 * this.ritmo, giro = 2.2, alvoAng = this.ang;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { criarCacador, slug, termos, htmlParaTexto, validarLink, paraMarkdown } from '../src/cacador.mjs';
+import { criarCacador, slug, termos, htmlParaTexto, validarLink, paraMarkdown, linksDaBusca } from '../src/cacador.mjs';
 import { criarServidor } from '../server.mjs';
 import { wikiFalsa } from './wiki-falsa.mjs';
 
@@ -41,7 +41,7 @@ test('link da rede interna e recusado', async () => {
 });
 
 test('caca um tema e le as paginas', async () => {
-  const r = await criarCacador({ wiki: base })({ tema: 'centopeia' });
+  const r = await criarCacador({ wiki: base, busca: `${base}/html/` })({ tema: 'centopeia' });
   assert.deepEqual(r.paginas.map(p => p.titulo), ['Centopeia', 'Miriapode', 'Artropode']);
   assert.match(r.resumo, /\*\*Centopeia\*\*/);
   assert.equal(r.fonte, 'extrativo');
@@ -49,7 +49,7 @@ test('caca um tema e le as paginas', async () => {
 });
 
 test('tema sem resultado da erro claro', async () => {
-  await assert.rejects(criarCacador({ wiki: base })({ tema: 'nada' }), /Nada encontrado/);
+  await assert.rejects(criarCacador({ wiki: base, busca: `${base}/nada/` })({ tema: 'nada' }), /Nada encontrado/);
 });
 
 test('markdown tem cabecalho, resumo e fontes', () => {
@@ -80,4 +80,13 @@ test('servidor nao entrega arquivo fora de public', async () => {
   const r = await fetch(`${appBase}/..%2Fserver.mjs`);
   assert.notEqual(r.status, 200);
   assert.equal((await fetch(`${appBase}/`)).status, 200);
+});
+
+test('busca na web livre junto com a Wikipedia', async () => {
+  const links = linksDaBusca('<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexemplo.org%2Fa&amp;rut=1">A</a><a class="result__a" href="https://duckduckgo.com/y.js?ad_x=1">ad</a>');
+  assert.deepEqual(links, ['https://exemplo.org/a']);
+  const r = await criarCacador({ wiki: base, busca: `${base}/html/`, permitirPrivado: true })({ tema: 'centopeia' });
+  assert.ok(r.paginas.some(p => p.titulo === 'Guia das centopeias'), 'pagina da web entrou');
+  assert.ok(r.paginas.some(p => p.url.includes('/wiki/')), 'Wikipedia continua');
+  assert.equal(r.paginas.length, 3);
 });

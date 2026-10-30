@@ -137,12 +137,13 @@ function abrirArea() {
     skipTaskbar: true, hasShadow: false, alwaysOnTop: true, backgroundColor: '#00000000', title: 'Terrário · área de trabalho',
     webPreferences: { contextIsolation: true, sandbox: true, preload: join(AQUI, 'preload-area.cjs'), backgroundThrottling: false },
   });
-  area.setAlwaysOnTop(true, 'floating');
+  area.setAlwaysOnTop(true, 'screen-saver');
   area.setIgnoreMouseEvents(true, { forward: true });
   area.setVisibleOnAllWorkspaces(true);
   area.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   area.webContents.on('will-navigate', e => e.preventDefault());
-  area.once('ready-to-show', () => area?.showInactive());
+  // janela transparente: no Windows o ready-to-show pode nao vir, entao mostra quando a pagina carrega
+  area.webContents.once('did-finish-load', () => { area?.showInactive(); area?.setAlwaysOnTop(true, 'screen-saver'); });
   area.on('closed', () => { area = null; });
   area.loadURL(`${base}/area.html`);
 }
