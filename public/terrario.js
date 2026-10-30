@@ -1,8 +1,10 @@
 // Terrario: fundo vivo, criaturas de blocos com pernas de grafo e a leitura
 // das paginas que elas cacam. Tudo em canvas 2D, sem bibliotecas.
+import { ELENCO } from './elenco.js';
 
 const CORES = ['#ffd23f', '#3ee6ff', '#ff5fd2', '#9dff57', '#ff8a3d', '#b18cff', '#5effc8', '#ff4f6d'];
-const NOMES = ['Quiron', 'Lumen', 'Mirra', 'Tessela', 'Vespa', 'Orvalho', 'Fiandeira', 'Brasa', 'Nimbo', 'Sarça'];
+const NOMES = ['Quiron', 'Lumen', 'Mirra', 'Tessela', 'Vespa', 'Orvalho', 'Fiandeira', 'Brasa', 'Nimbo', 'Sarca'];
+const MAX = 20;
 const PERNA = '#6f7dff';
 
 const tela = document.getElementById('tela');
@@ -149,15 +151,15 @@ function desenhaVidro() {
 
 // ---------------------------------------------------------------- criatura
 class Criatura {
-  constructor({ id, nome, cor, x = rand(200, W - 200), y = rand(160, H - 220), n = 13 }) {
-    Object.assign(this, { id, nome, cor });
+  constructor({ id, nome, cor, papel = '', tema = '', vel = 1, x = rand(200, W - 200), y = rand(160, H - 220), n = 13 }) {
+    Object.assign(this, { id, nome, cor, papel, tema, ritmo: vel, n });
     this.semente = Math.random() * 100;
     this.ang = rand(0, 6.28);
     this.vel = 40;
     this.espaco = 15;
     this.segs = Array.from({ length: n }, (_, i) => ({
       x: x - Math.cos(this.ang) * i * this.espaco, y: y - Math.sin(this.ang) * i * this.espaco, a: this.ang,
-      tam: 12.5 * (1 - (i / n) * 0.45), bits: (Math.random() * 16) | 0, troca: rand(0, 1) }));
+      tam: 11 * (1 - (i / n) * 0.45), bits: (Math.random() * 16) | 0, troca: rand(0, 1) }));
     this.pernas = [];
     for (let i = 1; i < n - 1; i++) for (const lado of [-1, 1]) {
       const s = this.segs[i];
@@ -184,7 +186,7 @@ class Criatura {
   atualizar(dt) {
     const c = this.cabeca;
     this.susto = Math.max(0, this.susto - dt * 0.9);
-    let velAlvo = 42, giro = 2.2, alvoAng = this.ang;
+    let velAlvo = 42 * this.ritmo, giro = 2.2, alvoAng = this.ang;
 
     if (this.estado === 'farejando') {
       alvoAng = this.ang + 2.6 * dt * 20;
@@ -535,12 +537,22 @@ const botaoSaber = document.getElementById('btn-saber');
 const qtd = document.getElementById('qtd');
 const aviso = document.getElementById('aviso');
 const dica = document.getElementById('dica');
+const contagem = document.getElementById('contagem');
+// ponte com o app de desktop (so existe dentro do Electron)
+const ponte = window.terrarioApp ?? null;
+
+// Elenco: todas as criaturas que existem. So as ligadas vivem no terrario.
+const CHAVE = 'terrario.elenco.v3';
+let elenco = [];
+const LIGADAS_DE_INICIO = new Set(['xavier', 'mimir', 'iris']);
 
 function salvar() {
-  try { localStorage.setItem('terrario.criaturas', JSON.stringify(criaturas.map(({ id, nome, cor }) => ({ id, nome, cor })))); } catch {}
+  for (const c of criaturas) Object.assign(elenco.find(d => d.id === c.id) ?? {}, { nome: c.nome });
+  try { localStorage.setItem(CHAVE, JSON.stringify(elenco)); } catch {}
+  ponte?.ligadas(elenco.filter(d => d.ativa).map(d => d.id));
 }
 function carregar() {
-  try { return JSON.parse(localStorage.getItem('terrario.criaturas')) || null; } catch { return null; }
+  try { return JSON.parse(localStorage.getItem(CHAVE)) || null; } catch { return null; }
 }
 
 function avisar(txt) {
@@ -558,31 +570,67 @@ function el(tag, attrs = {}, ...filhos) {
 }
 
 function escolher(c) {
-  escolhida = c;
-  document.documentElement.style.setProperty('--c', c.cor);
-  alvo.textContent = c.nome;
+  escolhida = c ?? null;
+  document.documentElement.style.setProperty('--c', c?.cor ?? '#8890b8');
+  alvo.textContent = c?.nome ?? 'ninguem';
+  botaoCacar.disabled = !c;
+  campo.placeholder = !c ? 'ligue uma criatura para cacar'
+    : c.tema ? `tema para ${c.nome} cacar… (vazio = ${c.tema})` : 'tema para cacar… ex.: centopeias, auroras, polvos';
   desenhaLista();
 }
 
 function desenhaLista() {
-  lista.replaceChildren(...criaturas.map(c => {
-    const b = el('button', { class: 'chip', type: 'button', 'aria-pressed': String(c === escolhida), style: `--c:${c.cor}` },
-      el('i'), c.nome, el('small', {}, c.estado === 'vagando' ? '' : c.legenda));
-    b.addEventListener('click', () => escolher(c));
-    return b;
+  lista.replaceChildren(...elenco.map(d => {
+    const viva = criaturas.find(c => c.id === d.id);
+    const chave = el('button', { class: 'liga', type: 'button', role: 'switch', 'aria-checked': String(!!viva),
+      'aria-label': `${viva ? 'Desligar' : 'Ligar'} ${d.nome}`, title: viva ? 'desligar' : 'ligar' });
+    chave.addEventListener('click', () => alternar(d.id));
+    const nome = el('button', { class: 'nome', type: 'button', title: [d.papel, d.tema && `caca: ${d.tema}`].filter(Boolean).join(' · ') },
+      d.nome, el('small', {}, viva && viva.estado !== 'vagando' ? viva.legenda : ''));
+    nome.addEventListener('click', () => viva ? escolher(viva) : alternar(d.id, true));
+    return el('span', { class: `chip${viva ? '' : ' desligada'}`, 'aria-current': String(!!viva && viva === escolhida), style: `--c:${d.cor}` }, chave, nome);
   }));
+  const n = criaturas.length;
+  contagem.textContent = `${n} de ${elenco.length} ligadas`;
 }
 
-function chocar(dados = {}) {
-  if (criaturas.length >= 8) return avisar('O terrario esta cheio (8 criaturas).');
-  const usados = new Set(criaturas.map(c => c.nome));
-  const nome = dados.nome ?? NOMES.find(n => !usados.has(n)) ?? `Cria ${criaturas.length + 1}`;
-  const cor = dados.cor ?? CORES.find(k => !criaturas.some(c => c.cor === k)) ?? CORES[0];
-  const c = new Criatura({ id: dados.id ?? crypto.randomUUID(), nome, cor });
-  criaturas.push(c);
-  ondas.push({ x: c.cabeca.x, y: c.cabeca.y, r: 4, cor, vida: 1 });
+// liga ou desliga uma criatura do elenco
+function alternar(id, escolherDepois = false) {
+  const d = elenco.find(x => x.id === id);
+  const viva = criaturas.find(c => c.id === id);
+  if (viva) {
+    if (viva.estado !== 'vagando') return avisar(`${viva.nome} esta cacando; desligo quando ela voltar.`);
+    criaturas = criaturas.filter(c => c !== viva);
+    for (const s of viva.segs.filter((_, i) => i % 3 === 0)) ondas.push({ x: s.x, y: s.y, r: 2, cor: viva.cor, vida: 0.7 });
+    d.ativa = false;
+    if (escolhida === viva) escolhida = null;
+  } else {
+    if (criaturas.length >= MAX) return avisar(`No maximo ${MAX} ligadas ao mesmo tempo.`);
+    const c = new Criatura(d);
+    criaturas.push(c);
+    ondas.push({ x: c.cabeca.x, y: c.cabeca.y, r: 4, cor: c.cor, vida: 1 });
+    d.ativa = true;
+    if (escolherDepois || !escolhida) escolhida = c;
+  }
   salvar();
-  return c;
+  escolher(escolhida ?? criaturas[0]);
+}
+
+function todas(liga) {
+  for (const d of elenco) if (!!criaturas.find(c => c.id === d.id) !== liga) alternar(d.id);
+}
+
+// criatura nova, fora do elenco do Brain
+function chocar(dados = {}) {
+  const usados = new Set(elenco.map(c => c.nome));
+  const d = {
+    id: crypto.randomUUID(), n: 12, vel: 1, papel: 'criatura nova', tema: '', ...dados,
+    nome: dados.nome ?? NOMES.find(n => !usados.has(n)) ?? `Cria ${elenco.length + 1}`,
+    cor: dados.cor ?? CORES.find(k => !elenco.some(c => c.cor === k)) ?? CORES[elenco.length % CORES.length],
+  };
+  elenco.push(d);
+  alternar(d.id, true);
+  return criaturas.find(c => c.id === d.id);
 }
 
 // Texto de exemplo para quando a tela abre sem o servidor (ou com ?demo).
@@ -698,24 +746,72 @@ tela.addEventListener('drop', e => {
   const link = (e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')).split('\n')[0].trim();
   if (!/^https?:\/\//.test(link)) return avisar('Isso nao parece um link.');
   const c = maisPerto({ x: e.clientX, y: e.clientY }, 260) ?? escolhida;
+  if (!c) return avisar('Ligue uma criatura primeiro.');
   escolher(c);
   cacar(c, { link });
 });
 form.addEventListener('submit', e => {
   e.preventDefault();
-  const tema = campo.value.trim();
+  if (!escolhida) return avisar('Ligue uma criatura primeiro.');
+  if (batizando) {
+    const nome = campo.value.trim().slice(0, 20);
+    if (nome) { escolhida.nome = nome; salvar(); }
+    return modoBatizar(false);
+  }
+  const tema = campo.value.trim() || escolhida.tema;
   if (!tema) return campo.focus();
   if (/^https?:\/\//.test(tema)) cacar(escolhida, { link: tema }); else cacar(escolhida, { tema });
   campo.value = '';
 });
 document.getElementById('btn-nova').addEventListener('click', () => { const c = chocar(); if (c) escolher(c); });
-document.getElementById('btn-batizar').addEventListener('click', () => {
-  const nome = (prompt(`Novo nome para ${escolhida.nome}:`, escolhida.nome) ?? '').trim().slice(0, 20);
-  if (nome) { escolhida.nome = nome; salvar(); escolher(escolhida); }
-});
+// batizar usa o proprio campo (o app de desktop nao tem prompt())
+let batizando = false;
+function modoBatizar(liga) {
+  batizando = liga;
+  botaoCacar.textContent = liga ? 'Batizar' : 'Caçar';
+  campo.value = liga ? escolhida.nome : '';
+  if (liga) { campo.placeholder = `novo nome para ${escolhida.nome}`; campo.focus(); campo.select(); } else escolher(escolhida);
+}
+document.getElementById('btn-batizar').addEventListener('click', () => escolhida ? modoBatizar(!batizando) : avisar('Ligue uma criatura primeiro.'));
+campo.addEventListener('keydown', e => { if (e.key === 'Escape' && batizando) modoBatizar(false); });
 botaoSaber.addEventListener('click', abrirGaveta);
+document.getElementById('btn-todas').addEventListener('click', () => todas(true));
+document.getElementById('btn-nenhuma').addEventListener('click', () => todas(false));
+
+// ---------------------------------------------------------------- tela de bloqueio
+const botaoBloqueio = document.getElementById('btn-bloqueio');
+const previa = document.getElementById('previa');
+const moldura = document.getElementById('previa-quadro');
+function mostraBloqueio(ligada) {
+  botaoBloqueio.setAttribute('aria-checked', String(ligada));
+  botaoBloqueio.textContent = `tela de bloqueio: ${ligada ? 'ligada' : 'desligada'}`;
+}
+botaoBloqueio.addEventListener('click', async () => {
+  if (!ponte) return avisar('A tela de bloqueio so troca no app de Windows. Aqui da para ver a previa.');
+  const ligar = botaoBloqueio.getAttribute('aria-checked') !== 'true';
+  mostraBloqueio(ligar);
+  try {
+    await ponte.bloqueio(ligar);
+    avisar(ligar ? 'Tela de bloqueio ligada: uma imagem nova a cada bloqueio (Win+L).' : 'Tela de bloqueio desligada.');
+  } catch (e) {
+    mostraBloqueio(!ligar);
+    avisar(`Nao consegui: ${e.message.replace(/^.*Error: /, '')}`);
+  }
+});
+function abrirPrevia() {
+  const ids = criaturas.map(c => c.id).join(',');
+  const semente = new Date().toISOString();
+  moldura.src = `bloqueio.html?${new URLSearchParams({ semente, w: '1920', h: '1080', elenco: ids })}`;
+  document.getElementById('previa-legenda').textContent = `semente ${semente}`;
+  previa.hidden = false;
+}
+document.getElementById('btn-previa').addEventListener('click', abrirPrevia);
+document.getElementById('previa-outra').addEventListener('click', abrirPrevia);
+document.getElementById('previa-fechar').addEventListener('click', () => { previa.hidden = true; moldura.src = 'about:blank'; });
+mostraBloqueio(false);
+ponte?.estado().then(e => mostraBloqueio(e.bloqueio)).catch(() => {});
 document.getElementById('btn-fechar').addEventListener('click', () => { gaveta.hidden = true; });
-addEventListener('keydown', e => { if (e.key === 'Escape') gaveta.hidden = true; });
+addEventListener('keydown', e => { if (e.key === 'Escape') { gaveta.hidden = true; previa.hidden = true; } });
 
 // ---------------------------------------------------------------- laco
 function redimensionar() {
@@ -751,13 +847,17 @@ function quadro(agora) {
 }
 
 redimensionar();
-for (const d of carregar() ?? [{}, {}, {}]) chocar(d);
+elenco = carregar() ?? ELENCO.map(d => ({ ...d, ativa: LIGADAS_DE_INICIO.has(d.id) }));
+// agente novo no Brain aparece desligado no elenco salvo
+for (const d of ELENCO) if (!elenco.some(x => x.id === d.id)) elenco.push({ ...d, ativa: false });
+criaturas = elenco.filter(d => d.ativa).map(d => new Criatura(d));
 escolher(criaturas[0]);
+ponte?.ligadas(elenco.filter(d => d.ativa).map(d => d.id));
 carregarConhecimento();
 requestAnimationFrame(quadro);
 
 // ?demo: a primeira criatura caca sozinha, para mostrar o efeito
-if (new URLSearchParams(location.search).has('demo')) setTimeout(() => cacar(criaturas[0], { tema: 'centopeias' }), 1200);
+if (new URLSearchParams(location.search).has('demo') && criaturas[0]) setTimeout(() => cacar(criaturas[0], { tema: 'centopeias' }), 1200);
 
 // para testes automatizados
-window.terrario = { get criaturas() { return criaturas; }, cacar, chocar };
+window.terrario = { get criaturas() { return criaturas; }, get elenco() { return elenco; }, cacar, chocar, alternar };

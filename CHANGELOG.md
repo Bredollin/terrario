@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 (2026-10-30)
+
+- Elenco: uma criatura para cada agente do Brain, com cor, tamanho, ritmo e tema favorito.
+- Chave liga/desliga por criatura, *ligar todas* e *desligar todas*. Até 20 ligadas.
+- Tela de bloqueio generativa: campo de fluxo + criaturas ligadas + termos aprendidos; semente = data e hora; botão liga/desliga e prévia.
+- App de Windows (Electron, `Terrario.exe` portátil): bandeja, gera a próxima tela a cada bloqueio, iniciar com o Windows.
+- Batizar sem `prompt()` (funciona no app).
+- Teste do app (`npm run test:app`).
+
 ## 0.1.0 (2026-10-30)
 
 - Terrário animado em canvas: fundo com rede, esporos e aurora; moldura de vidro.

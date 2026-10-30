@@ -1,13 +1,49 @@
 {
   "name": "terrario",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Terrario de criaturas digitais animadas, cada uma movida por um agente que caca temas na web e grava o que aprende em markdown.",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.mjs",
+    "app": "electron .",
     "test": "node --test test/*.test.mjs",
-    "test:ui": "node test/ui/capturas.mjs"
+    "test:ui": "node test/ui/capturas.mjs",
+    "test:app": "node test/ui/app.mjs",
+    "dist": "electron-builder --win portable --x64"
+  },
+  "main": "electron/main.mjs",
+  "productName": "Terrario",
+  "author": "Michael Bredollin",
+  "build": {
+    "appId": "br.bredollin.terrario",
+    "productName": "Terrario",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "public/**/*",
+      "src/**/*",
+      "server.mjs",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "build/icon.png",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "Terrario.exe"
+    },
+    "npmRebuild": false
+  },
+  "devDependencies": {
+    "electron": "^38.8.6",
+    "electron-builder": "^26.18.0"
   }
 }

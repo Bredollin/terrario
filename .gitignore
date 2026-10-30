@@ -1,4 +1,5 @@
 node_modules/
-conhecimento/
-capturas/
+/conhecimento/
+/capturas/
 .env
+/dist/
