@@ -43,6 +43,9 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 .rotulo { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--apagado); margin-right: auto; }
 .rotulo b { font-weight: 400; letter-spacing: .05em; text-transform: none; color: var(--ambar); margin-left: 6px; }
 button.mini { padding: 4px 9px; font-size: 10.5px; border-radius: 8px; }
+.sozinhas::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #5d6488; }
+.sozinhas[aria-checked="true"] { border-color: #5effc8; color: #c8fff0; }
+.sozinhas[aria-checked="true"]::before { background: #5effc8; box-shadow: 0 0 8px #5effc8; }
 .chip {
   display: inline-flex; align-items: center; gap: 0; padding: 0;
   border-radius: 999px; border: 1px solid transparent; background: rgba(255, 255, 255, 0.04);

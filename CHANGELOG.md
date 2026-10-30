@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2 (2026-10-30)
+
+- Leitura: a cabeça segue a rota da folha em linha (230 px/s), sem mirar ponto a ponto. Antes, com raio de curva maior que o raio de chegada, a criatura podia orbitar uma palavra e a caçada não terminava. 3 páginas levam cerca de 30 s.
+- Chips do elenco atualizados no lugar: recriar os botões a cada mudança de estado perdia o clique na chave durante uma caçada.
+- Desligar durante o "farejando" também cancela (antes a folha ainda aparecia).
+- Caça sozinha (padrão ligado, botão *caçam sozinhas*): sem tema dado, cada criatura escolhe um (curiosidades do seu papel ou pistas da última leitura) e caça a cada 3 min; uma leitura por vez na tela. `?intervalo=<s>` muda o intervalo.
+- GitHub Actions (`.github/workflows/exe.yml`): gera o `Terrario.exe` no Windows a cada PR (artefato) e publica uma Release a cada merge na main.
+
 ## 0.2.1 (2026-10-30)
 
 - Corrigido: criatura podia ficar rodando em volta de uma palavra e a caçada nunca terminava, o que travava a chave de desligar. Agora ela freia quando o ponto está de lado e pula o ponto depois de 1,5 s.

@@ -151,7 +151,7 @@ function desenhaVidro() {
 
 // ---------------------------------------------------------------- criatura
 class Criatura {
-  constructor({ id, nome, cor, papel = '', tema = '', vel = 1, x = rand(200, W - 200), y = rand(160, H - 220), n = 13 }) {
+  constructor({ id, nome, cor, papel = '', tema = '', curiosidades = [], vel = 1, x = rand(200, W - 200), y = rand(160, H - 220), n = 13 }) {
     Object.assign(this, { id, nome, cor, papel, tema, ritmo: vel, n });
     this.semente = Math.random() * 100;
     this.ang = rand(0, 6.28);
@@ -172,6 +172,10 @@ class Criatura {
     this.susto = 0;
     this.lendo = 0;
     this.noAlvo = 0;
+    this.curiosidades = curiosidades;
+    this.historico = [];
+    this.pistas = [];
+    this.proxima = tempo + rand(3, 8); // ligou: logo comeca a cacar
   }
 
   get cabeca() { return this.segs[0]; }
@@ -194,13 +198,8 @@ class Criatura {
       velAlvo = 55; giro = 2.6;
     } else {
       if (this.rota.length) {
-        if (this.alvo !== this.rota[0]) { this.alvo = this.rota[0]; this.noAlvo = 0; }
-        this.noAlvo += dt;
-        // chegou, ou ficou rodando em volta do ponto: segue para o proximo
-        if (dist(c, this.alvo) < 12 || this.noAlvo > 1.5) { this.rota.shift(); this.alvo = this.rota[0] ?? null; this.noAlvo = 0; }
-        // freia quando o ponto esta de lado ou atras, para nao orbitar
-        const desvio = this.alvo ? Math.abs(angDif(this.ang, Math.atan2(this.alvo.y - c.y, this.alvo.x - c.x))) : 0;
-        velAlvo = 175 * Math.max(0.2, Math.cos(Math.min(desvio, Math.PI / 2))); giro = 7;
+        this.seguirRota(dt);
+        return this.moverCorpo(dt);
       } else if (!this.alvo || dist(c, this.alvo) < 40 || Math.random() < dt * 0.05) {
         this.alvo = { x: rand(120, W - 120), y: rand(120, H - 200) };
       }
@@ -228,6 +227,28 @@ class Criatura {
     c.x += Math.cos(this.ang) * this.vel * dt;
     c.y += Math.sin(this.ang) * this.vel * dt;
     c.a = this.ang;
+    this.moverCorpo(dt);
+  }
+
+  // Lendo: a cabeca percorre a rota em linha, sem mirar. Nao tem como orbitar
+  // um ponto, e a leitura sempre termina.
+  seguirRota(dt) {
+    const c = this.cabeca;
+    let passo = 230 * dt;
+    while (passo > 0 && this.rota.length) {
+      const p = this.rota[0], d = dist(c, p);
+      if (d <= passo) { c.x = p.x; c.y = p.y; passo -= d; this.rota.shift(); continue; }
+      c.x += (p.x - c.x) / d * passo; c.y += (p.y - c.y) / d * passo;
+      passo = 0;
+    }
+    const prox = this.rota[0];
+    if (prox && dist(c, prox) > 0.5) this.ang += angDif(this.ang, Math.atan2(prox.y - c.y, prox.x - c.x)) * Math.min(1, dt * 10);
+    c.a = this.ang;
+    this.vel = 230;
+    this.alvo = null;
+  }
+
+  moverCorpo(dt) {
 
     // corpo: cada bloco segue o anterior a uma distancia fixa
     for (let i = 1; i < this.segs.length; i++) {
@@ -584,19 +605,35 @@ function escolher(c) {
   desenhaLista();
 }
 
+// Atualiza os chips no lugar. Recriar tudo a cada mudanca trocava o botao
+// entre o apertar e o soltar do mouse, e o clique se perdia.
+const chips = new Map();
 function desenhaLista() {
-  lista.replaceChildren(...elenco.map(d => {
+  for (const [id, ch] of chips) if (!elenco.some(d => d.id === id)) { ch.raiz.remove(); chips.delete(id); }
+  for (const d of elenco) {
+    let ch = chips.get(d.id);
+    if (!ch) {
+      const chave = el('button', { class: 'liga', type: 'button', role: 'switch' });
+      chave.addEventListener('click', () => alternar(d.id));
+      const legenda = el('small');
+      const nome = el('button', { class: 'nome', type: 'button' }, el('span'), legenda);
+      nome.addEventListener('click', () => { const v = criaturas.find(c => c.id === d.id); v ? escolher(v) : alternar(d.id, true); });
+      const raiz = el('span', { class: 'chip', style: `--c:${d.cor}` }, chave, nome);
+      lista.append(raiz);
+      ch = { raiz, chave, nome, legenda };
+      chips.set(d.id, ch);
+    }
     const viva = criaturas.find(c => c.id === d.id);
-    const chave = el('button', { class: 'liga', type: 'button', role: 'switch', 'aria-checked': String(!!viva),
-      'aria-label': `${viva ? 'Desligar' : 'Ligar'} ${d.nome}`, title: viva ? 'desligar' : 'ligar' });
-    chave.addEventListener('click', () => alternar(d.id));
-    const nome = el('button', { class: 'nome', type: 'button', title: [d.papel, d.tema && `caca: ${d.tema}`].filter(Boolean).join(' · ') },
-      d.nome, el('small', {}, viva && viva.estado !== 'vagando' ? viva.legenda : ''));
-    nome.addEventListener('click', () => viva ? escolher(viva) : alternar(d.id, true));
-    return el('span', { class: `chip${viva ? '' : ' desligada'}`, 'aria-current': String(!!viva && viva === escolhida), style: `--c:${d.cor}` }, chave, nome);
-  }));
-  const n = criaturas.length;
-  contagem.textContent = `${n} de ${elenco.length} ligadas`;
+    ch.raiz.className = `chip${viva ? '' : ' desligada'}`;
+    ch.raiz.setAttribute('aria-current', String(!!viva && viva === escolhida));
+    ch.chave.setAttribute('aria-checked', String(!!viva));
+    ch.chave.setAttribute('aria-label', `${viva ? 'Desligar' : 'Ligar'} ${d.nome}`);
+    ch.chave.title = viva ? 'desligar' : 'ligar';
+    ch.nome.title = [d.papel, d.tema && `caca: ${d.tema}`].filter(Boolean).join(' · ');
+    ch.nome.firstChild.textContent = viva?.nome ?? d.nome;
+    ch.legenda.textContent = viva && viva.estado !== 'vagando' ? viva.legenda : '';
+  }
+  contagem.textContent = `${criaturas.length} de ${elenco.length} ligadas`;
 }
 
 // liga ou desliga uma criatura do elenco
@@ -665,22 +702,22 @@ async function pedirCaca(c, { tema = '', link = '' }) {
 async function cacar(c, pedido) {
   if (c.estado !== 'vagando') return avisar(`${c.nome} ainda esta ocupada.`);
   c.estado = 'farejando';
-  c.legenda = 'farejando…';
+  c.legenda = pedido.sozinha ? `escolheu: ${(pedido.tema || '').slice(0, 24)}` : 'farejando…';
   desenhaLista();
-  botaoCacar.disabled = true;
   const inicio = performance.now();
   let achado;
   try {
     achado = await pedirCaca(c, pedido);
   } catch (e) {
-    c.estado = 'vagando'; botaoCacar.disabled = false; desenhaLista();
-    c.cutucar({ x: c.cabeca.x + 10, y: c.cabeca.y });
+    c.estado = 'vagando'; c.legenda = ''; c.cancelada = false;
+    c.proxima = tempo + INTERVALO;
+    desenhaLista();
+    if (!pedido.sozinha) c.cutucar({ x: c.cabeca.x + 10, y: c.cabeca.y });
     return avisar(`${c.nome} voltou sem nada: ${e.message}`);
   }
   // fareja pelo menos um pouquinho, para dar tempo de ver
   await new Promise(r => setTimeout(r, Math.max(0, 1600 - (performance.now() - inicio))));
-  botaoCacar.disabled = !escolhida;
-  for (const pagina of achado.paginas.slice(0, 3)) {
+  for (const pagina of c.cancelada ? [] : achado.paginas.slice(0, 3)) {
     c.estado = 'lendo';
     c.legenda = `lendo: ${pagina.titulo.slice(0, 28)}`;
     desenhaLista();
@@ -704,9 +741,44 @@ async function cacar(c, pedido) {
     qtd.textContent = conhecimento.length;
   } else await carregarConhecimento();
   avisar(achado.demo ? `${c.nome} trouxe "${achado.tema}" (demonstracao)` : `${c.nome} gravou ${achado.arquivo}`);
+  // o que aprendeu vira curiosidade para a proxima caca
+  c.historico = [achado.tema, ...c.historico].slice(0, 12);
+  c.pistas = (achado.termos ?? []).filter(t => !c.historico.includes(t)).slice(0, 8);
+  c.proxima = tempo + INTERVALO;
   c.estado = 'vagando'; c.legenda = '';
   desenhaLista();
 }
+
+// ---------------------------------------------------------------- caca sozinha
+// Ligada e sem tema dado, a criatura escolhe o que quer pesquisar: ora uma
+// curiosidade do seu papel, ora uma pista do que leu na ultima caca.
+const INTERVALO = Number(new URLSearchParams(location.search).get('intervalo')) || 180;
+let sozinhas = true;
+try { sozinhas = localStorage.getItem('terrario.sozinhas') !== 'nao'; } catch {}
+
+export function escolherTema(c, sorte = Math.random) {
+  const ja = new Set(c.historico);
+  const curiosas = (c.curiosidades?.length ? c.curiosidades : [c.tema].filter(Boolean)).filter(t => !ja.has(t));
+  const pistas = (c.pistas ?? []).filter(t => !ja.has(t));
+  if (pistas.length && (sorte() < 0.4 || !curiosas.length)) return pistas[Math.floor(sorte() * pistas.length)];
+  if (curiosas.length) return curiosas[Math.floor(sorte() * curiosas.length)];
+  // ja viu tudo: recomeca pelas curiosidades
+  c.historico = [];
+  return (c.curiosidades ?? [c.tema])[0] || 'curiosidades da natureza';
+}
+
+function cacasSozinhas() {
+  if (!sozinhas) return;
+  // uma leitura por vez na tela, para as folhas nao se amontoarem
+  const ocupada = criaturas.some(c => c.estado !== 'vagando');
+  for (const c of criaturas) {
+    if (c.estado !== 'vagando' || tempo < c.proxima) continue;
+    if (ocupada) { c.proxima = tempo + rand(4, 10); continue; }
+    cacar(c, { tema: escolherTema(c), sozinha: true });
+    return;
+  }
+}
+setInterval(cacasSozinhas, 1000);
 
 function esperar(cond) {
   return new Promise(r => { const t = setInterval(() => { if (cond()) { clearInterval(t); r(); } }, 100); });
@@ -783,6 +855,19 @@ function modoBatizar(liga) {
 document.getElementById('btn-batizar').addEventListener('click', () => escolhida ? modoBatizar(!batizando) : avisar('Ligue uma criatura primeiro.'));
 campo.addEventListener('keydown', e => { if (e.key === 'Escape' && batizando) modoBatizar(false); });
 botaoSaber.addEventListener('click', abrirGaveta);
+const botaoSozinhas = document.getElementById('btn-sozinhas');
+function mostraSozinhas() {
+  botaoSozinhas.setAttribute('aria-checked', String(sozinhas));
+  botaoSozinhas.textContent = `caçam sozinhas: ${sozinhas ? 'sim' : 'não'}`;
+}
+botaoSozinhas.addEventListener('click', () => {
+  sozinhas = !sozinhas;
+  try { localStorage.setItem('terrario.sozinhas', sozinhas ? 'sim' : 'nao'); } catch {}
+  for (const c of criaturas) c.proxima = tempo + rand(3, 8);
+  mostraSozinhas();
+  avisar(sozinhas ? `Sem tema dado, cada uma escolhe o seu e caça a cada ${Math.round(INTERVALO / 60)} min.` : 'Agora só caçam quando você der o tema.');
+});
+mostraSozinhas();
 document.getElementById('btn-todas').addEventListener('click', () => todas(true));
 document.getElementById('btn-nenhuma').addEventListener('click', () => todas(false));
 
@@ -856,8 +941,13 @@ function quadro(agora) {
 
 redimensionar();
 elenco = carregar() ?? ELENCO.map(d => ({ ...d, ativa: LIGADAS_DE_INICIO.has(d.id) }));
-// agente novo no Brain aparece desligado no elenco salvo
-for (const d of ELENCO) if (!elenco.some(x => x.id === d.id)) elenco.push({ ...d, ativa: false });
+// agente novo no Brain aparece desligado no elenco salvo; campos novos
+// (como as curiosidades) chegam nos que ja estavam salvos
+for (const d of ELENCO) {
+  const salvo = elenco.find(x => x.id === d.id);
+  if (salvo) for (const k of Object.keys(d)) salvo[k] ??= d[k];
+  else elenco.push({ ...d, ativa: false });
+}
 criaturas = elenco.filter(d => d.ativa).map(d => new Criatura(d));
 escolher(criaturas[0]);
 ponte?.ligadas(elenco.filter(d => d.ativa).map(d => d.id));

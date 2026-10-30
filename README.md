@@ -8,7 +8,7 @@ Inspiração: o vídeo "Crawlers" (criaturas que exploram a web). Aqui não há 
 
 ## App de Windows
 
-Baixe `Terrario.exe` (portátil, não instala nada) e abra. O terrário abre e fica um ícone na bandeja.
+Baixe o `Terrario.exe` da [última Release](../../releases/latest) (portátil, não instala nada) e abra. O GitHub gera o exe sozinho a cada merge na `main`. O terrário abre e fica um ícone na bandeja.
 
 - **Criaturas**: uma para cada agente do Brain (Xavier, Professor, Revisor, Batman, Ciborgue, Visão, Stark, Oráculo, Mímir, Thoth, Íris, Iara, Skuld, Odin, Heimdall). Cada uma tem sua chave: ligue uma, várias ou todas (*ligar todas* / *desligar todas*). Só as ligadas andam no terrário.
 - **Tela de bloqueio**: o botão *tela de bloqueio* liga e desliga. Ligada, cada vez que o Windows bloqueia (Win+L) o app pinta uma imagem nova e única com as criaturas ligadas e os termos que elas aprenderam, e ela aparece no próximo bloqueio. *Prévia* mostra uma na hora.
@@ -44,6 +44,7 @@ A chave nunca vai para arquivo nem para o repositório: só variável de ambient
 - **Cutucar**: clique numa criatura.
 - **Batizar** (no próprio campo) e **+ criatura** (criaturas novas, fora do elenco). Até 20 ligadas ao mesmo tempo.
 - Campo vazio + *Caçar*: a criatura caça o tema favorito dela (ex.: Batman caça segurança da informação).
+- **Caçam sozinhas** (ligado por padrão): sem tema dado, cada criatura ligada escolhe o que pesquisar (curiosidades do seu papel ou pistas do que leu antes) e caça a cada 3 minutos. Uma leitura por vez na tela.
 - Abrir `public/index.html` direto, ou com `?demo`, roda uma demonstração sem servidor (nada é gravado).
 
 ## Privacidade
