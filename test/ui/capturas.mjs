@@ -16,7 +16,7 @@ const ouvir = s => new Promise(r => s.listen(0, '127.0.0.1', () => r(`http://127
 const wiki = wikiFalsa();
 const base = await ouvir(wiki);
 const pasta = await mkdtemp(join(tmpdir(), 'terrario-ui-'));
-const app = criarServidor({ saida: pasta, cacar: criarCacador({ wiki: base }) });
+const app = criarServidor({ saida: pasta, cacar: criarCacador({ wiki: base, busca: `${base}/html/` }) });
 const url = await ouvir(app);
 
 const nav = await chromium.launch();
@@ -58,8 +58,17 @@ const inicio = Date.now();
 await pag.click('#btn-cacar');
 await pag.waitForTimeout(900);
 await foto('02-farejando.png');
-await pag.waitForTimeout(7000);
+await pag.waitForFunction(() => terrario.criaturas[0].estado === 'lendo', null, { timeout: 30000 });
+await pag.waitForTimeout(3000);
+// mouse em cima da criatura: aparece o cartao do que ela esta lendo
+for (let i = 0; i < 6; i++) {
+  const h = await pag.evaluate(() => terrario.criaturas[0].cabeca);
+  await pag.mouse.move(h.x, h.y);
+  await pag.waitForTimeout(150);
+}
+if (!(await pag.evaluate(() => !!terrario.criaturas[0].leitura))) throw new Error('criatura lendo sem leitura');
 await foto('03-lendo.png');
+await pag.mouse.move(5, 5);
 await pag.waitForFunction(() => terrario.criaturas[0].estado === 'vagando', null, { timeout: 90000 });
 // 3 paginas, uma delas longa: a leitura tem de acabar, sem a criatura ficar rodando
 const segundos = (Date.now() - inicio) / 1000;

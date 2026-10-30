@@ -61,6 +61,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const porta = Number(process.env.PORT ?? 4747);
   const cacar = criarCacador({
     wiki: process.env.TERRARIO_WIKI || undefined,
+    busca: process.env.TERRARIO_BUSCA || undefined,
     chave: process.env.ANTHROPIC_API_KEY || '',
     modelo: process.env.TERRARIO_MODELO || undefined,
     permitirPrivado: process.env.TERRARIO_PERMITIR_PRIVADO === '1',

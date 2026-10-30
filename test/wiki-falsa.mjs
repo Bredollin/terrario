@@ -22,6 +22,17 @@ export function wikiFalsa() {
       const pages = Object.fromEntries(q.get('titles').split('|').map((t, i) => [i, { title: t, extract: PAGINAS[t] }]));
       return res.end(JSON.stringify({ query: { pages } }));
     }
+    // busca da web de mentira, no formato do DuckDuckGo HTML
+    if (u.pathname === '/html/') {
+      res.setHeader('content-type', 'text/html');
+      const host = `http://${req.headers.host}`;
+      return res.end(`<a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=${encodeURIComponent(host + '/longo')}&rut=x">Longo</a>`
+        + `<a class="result__a" href="https://pt.wikipedia.org/wiki/X">Wiki</a>`);
+    }
+    if (u.pathname === '/longo') {
+      res.setHeader('content-type', 'text/html');
+      return res.end('<html><head><title>Guia das centopeias</title></head><body><p>' + 'Centopeias caçam insetos a noite e se escondem sob pedras. '.repeat(10) + '</p></body></html>');
+    }
     if (u.pathname === '/artigo') {
       res.setHeader('content-type', 'text/html');
       return res.end('<html><head><title>Polvos</title><script>x()</script></head><body><p>Polvos tem tres coracoes.</p><p>E sangue azul.</p></body></html>');

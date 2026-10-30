@@ -77,8 +77,23 @@ async function buscar(url, { timeout = 10000, limite = 1_500_000 } = {}) {
   return { tipo: r.headers.get('content-type') ?? '', corpo: corpo.slice(0, limite) };
 }
 
-export function criarCacador({ wiki = 'https://pt.wikipedia.org', chave = '', modelo = 'claude-sonnet-5-5',
-  permitirPrivado = false, maxPaginas = 3 } = {}) {
+// Resultados da busca da web (DuckDuckGo HTML, sem chave): links reais, sem anuncios.
+export function linksDaBusca(html, n = 4) {
+  const links = [];
+  for (const m of html.matchAll(/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"/g)) {
+    let href = m[1].replace(/&amp;/g, '&');
+    const uddg = /[?&]uddg=([^&]+)/.exec(href);
+    if (uddg) href = decodeURIComponent(uddg[1]);
+    if (href.startsWith('//')) href = 'https:' + href;
+    if (!/^https?:/.test(href) || /duckduckgo\.com\/y\.js|[?&]ad_/.test(href) || links.includes(href)) continue;
+    links.push(href);
+    if (links.length >= n) break;
+  }
+  return links;
+}
+
+export function criarCacador({ wiki = 'https://pt.wikipedia.org', busca = 'https://html.duckduckgo.com/html/', chave = '',
+  modelo = 'claude-sonnet-5-5', permitirPrivado = false, maxPaginas = 3 } = {}) {
 
   async function lerWiki(tema) {
     const api = new URL('/w/api.php', wiki);
@@ -103,6 +118,31 @@ export function criarCacador({ wiki = 'https://pt.wikipedia.org', chave = '', mo
     return [{ titulo: htmlParaTexto(titulo), url: url.href, texto: texto.replace(/\s+/g, ' ').slice(0, 2400) }];
   }
 
+  // web livre: busca o tema e le as primeiras paginas que abrirem (fora da Wikipedia)
+  async function lerWeb(tema, n) {
+    const url = new URL(busca);
+    url.search = new URLSearchParams({ q: tema, kl: 'br-pt' });
+    const links = linksDaBusca((await buscar(url)).corpo, 6).filter(l => !/wikipedia\.org/.test(l));
+    const lidas = [];
+    for (const l of links) {
+      if (lidas.length >= n) break;
+      try {
+        const [p] = await lerLink(l);
+        if (p.texto.length > 300) lidas.push(p);
+      } catch {}
+    }
+    return lidas;
+  }
+
+  // Wikipedia + web livre, ao mesmo tempo; se uma falhar, vale a outra
+  async function lerTema(tema) {
+    const [wikis, web] = await Promise.allSettled([lerWiki(tema), lerWeb(tema, maxPaginas - 1)]);
+    const w = wikis.status === 'fulfilled' ? wikis.value : [], d = web.status === 'fulfilled' ? web.value : [];
+    const paginas = [...w.slice(0, Math.max(1, maxPaginas - d.length)), ...d].slice(0, maxPaginas);
+    if (!paginas.length) throw new Error(`Nada encontrado sobre "${tema}".`);
+    return paginas;
+  }
+
   async function resumirComIA(tema, paginas) {
     const fontes = paginas.map((p, i) => `[${i + 1}] ${p.titulo}\n${p.texto}`).join('\n\n');
     const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -123,7 +163,7 @@ export function criarCacador({ wiki = 'https://pt.wikipedia.org', chave = '', mo
   return async function cacar({ tema = '', link = '' }) {
     const alvo = link || tema;
     if (!String(alvo).trim()) throw new Error('Diga um tema ou solte um link.');
-    const paginas = link ? await lerLink(link) : await lerWiki(tema.trim().slice(0, 120));
+    const paginas = link ? await lerLink(link) : await lerTema(tema.trim().slice(0, 120));
     let resumo = '', fonte = 'extrativo';
     if (chave) {
       try { resumo = await resumirComIA(tema || paginas[0].titulo, paginas); fonte = 'ia'; }

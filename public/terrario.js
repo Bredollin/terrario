@@ -121,87 +121,8 @@ function desenhaVidro() {
 
 
 // ---------------------------------------------------------------- leitura
-// Folha: a pagina que a criatura percorre palavra por palavra.
-class Folha {
-  constructor({ titulo, texto, url }, termos, criatura) {
-    this.titulo = titulo; this.url = url; this.criatura = criatura;
-    this.alfa = 0; this.saindo = false;
-    const larg = Math.min(560, W * 0.62);
-    this.x = Math.max(60, (W - larg) / 2 + rand(-80, 80));
-    this.y = Math.max(110, H * 0.22 + rand(-30, 30));
-    this.w = larg;
-    ctx.font = '15px Georgia, "Times New Roman", serif';
-    const palavras = texto.split(/\s+/).filter(Boolean);
-    const linhas = [[]];
-    let largura = 0;
-    const espaco = ctx.measureText(' ').width;
-    for (const p of palavras) {
-      const lw = ctx.measureText(p).width;
-      if (largura + lw > larg - 40 && linhas.at(-1).length) {
-        if (linhas.length === 7) break;
-        linhas.push([]); largura = 0;
-      }
-      linhas.at(-1).push({ p, lw, x: 20 + largura });
-      largura += lw + espaco;
-    }
-    const tset = new Set(termos.map(t => t.toLowerCase()));
-    this.palavras = [];
-    linhas.forEach((l, li) => l.forEach(w => this.palavras.push({
-      ...w, y: 66 + li * 27, lida: 0, termo: tset.has(w.p.toLowerCase().replace(/[^\p{L}-]/gu, '')) })));
-    this.h = 66 + linhas.length * 27 + 12;
-    // caminho em zigue-zague sobre as linhas
-    this.rota = [];
-    linhas.forEach((l, li) => {
-      const ws = this.palavras.filter(w => w.y === 66 + li * 27);
-      (li % 2 ? [...ws].reverse() : ws).forEach(w =>
-        this.rota.push({ x: this.x + w.x + w.lw / 2, y: this.y + w.y - 5 }));
-    });
-  }
-
-  atualizar(dt) {
-    this.alfa = this.saindo ? Math.max(0, this.alfa - dt * 1.2) : Math.min(1, this.alfa + dt * 2);
-    const c = this.criatura.cabeca;
-    for (const w of this.palavras) {
-      if (w.lida) { w.lida = Math.min(1, w.lida + dt * 3); continue; }
-      const px = this.x + w.x, py = this.y + w.y;
-      if (c.x > px - 8 && c.x < px + w.lw + 8 && Math.abs(c.y - (py - 5)) < 16) {
-        w.lida = 0.01;
-        if (w.termo) rotulos.push(new Rotulo(w.p.replace(/[^\p{L}-]/gu, ''), px + w.lw / 2, py - 5, this.criatura.cor, this));
-      }
-    }
-  }
-
-  desenhar() {
-    if (!this.alfa) return;
-    const { x, y, w, h } = this;
-    ctx.save();
-    ctx.globalAlpha = this.alfa;
-    ctx.fillStyle = 'rgba(8,11,30,0.72)';
-    ctx.strokeStyle = 'rgba(130,145,255,0.25)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.roundRect(x, y, w, h, 14); ctx.fill(); ctx.stroke();
-    ctx.font = '600 20px Georgia, serif';
-    ctx.fillStyle = '#eef0ff';
-    ctx.fillText(this.titulo.slice(0, 48), x + 20, y + 34);
-    ctx.font = '10px "JetBrains Mono", Consolas, monospace';
-    ctx.fillStyle = 'rgba(140,150,200,0.7)';
-    ctx.fillText((this.url ?? '').replace(/^https?:\/\//, '').slice(0, 70), x + 20, y + 50);
-    ctx.font = '15px Georgia, "Times New Roman", serif';
-    const cor = this.criatura.cor;
-    for (const p of this.palavras) {
-      const px = x + p.x, py = y + p.y;
-      if (p.termo) {
-        ctx.fillStyle = p.lida ? rgba(cor, 0.4 + p.lida * 0.6) : 'rgba(130,145,255,0.55)';
-        if (p.lida) { ctx.fillRect(px, py + 4, p.lw * p.lida, 1.3); }
-      } else {
-        ctx.fillStyle = `rgba(215,222,255,${0.28 + p.lida * 0.62})`;
-      }
-      ctx.fillText(p.p, px, py);
-    }
-    ctx.restore();
-  }
-}
-
+// A criatura le andando, sem folha na tela; passar o mouse mostra o cartao
+// do que ela esta lendo (desenhaCartao).
 // Rotulo: termo descoberto que sai flutuando, como num cladograma.
 class Rotulo {
   constructor(texto, x, y, cor, folha) {
@@ -260,10 +181,52 @@ class Orbe {
 
 // ---------------------------------------------------------------- estado
 let criaturas = [];
-let folhas = [], rotulos = [], ondas = [], orbes = [];
+let rotulos = [], ondas = [], orbes = [];
+let naArea = false;
 // o mundo que as criaturas enxergam
 Criatura.padrao = { ctx, mouse, get W() { return W; }, get H() { return H; }, get tempo() { return tempo; },
-  get folhas() { return folhas; }, get ondas() { return ondas; } };
+  get ondas() { return ondas; } };
+
+// cartao do que a criatura esta lendo: aparece com o mouse em cima dela
+function desenhaCartao(c) {
+  const { titulo, palavras, inicio, dura } = c.leitura;
+  const prog = Math.min(1, (tempo - inicio) / dura);
+  const ate = Math.floor(prog * palavras.length);
+  const trecho = palavras.slice(Math.max(0, ate - 26), ate);
+  const w = 330, x = Math.min(W - w - 20, Math.max(20, c.cabeca.x + 40));
+  ctx.font = '12px "Inter", "Segoe UI", sans-serif';
+  // quebra o trecho em ate 4 linhas
+  const linhas = [];
+  let linha = '';
+  for (const p of trecho) {
+    if (ctx.measureText(`${linha} ${p}`).width > w - 28) { linhas.push(linha); linha = p; } else linha = linha ? `${linha} ${p}` : p;
+  }
+  if (linha) linhas.push(linha);
+  const vis = linhas.slice(-4), h = 70 + vis.length * 17;
+  const y = Math.min(H - h - 20, Math.max(20, c.cabeca.y - h - 30));
+  ctx.fillStyle = 'rgba(8,11,30,0.9)';
+  ctx.strokeStyle = rgba(c.cor, 0.55);
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = rgba(c.cor, 0.95);
+  ctx.font = '10px "JetBrains Mono", Consolas, monospace';
+  ctx.fillText(`${c.nome.toUpperCase()} ESTA LENDO`, x + 14, y + 20);
+  ctx.fillStyle = '#e8ecff';
+  ctx.font = '600 14px "Inter", "Segoe UI", sans-serif';
+  ctx.fillText(titulo.length > 38 ? titulo.slice(0, 37) + '…' : titulo, x + 14, y + 40);
+  ctx.font = '12px "Inter", "Segoe UI", sans-serif';
+  vis.forEach((l, i) => { ctx.fillStyle = `rgba(200,208,255,${0.45 + 0.5 * (i + 1) / vis.length})`; ctx.fillText(l, x + 14, y + 62 + i * 17); });
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(x + 14, y + h - 12, w - 28, 3);
+  ctx.fillStyle = c.cor; ctx.fillRect(x + 14, y + h - 12, (w - 28) * prog, 3);
+}
+
+function desenhaFora() {
+  ctx.font = '12px "JetBrains Mono", Consolas, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(200,208,255,0.55)';
+  ctx.fillText('as criaturas ligadas estao passeando na sua area de trabalho', W / 2, H * 0.42);
+  ctx.textAlign = 'left';
+}
 let escolhida = null;
 
 const lista = document.getElementById('lista');
@@ -434,19 +397,26 @@ async function cacar(c, pedido) {
   }
   // fareja pelo menos um pouquinho, para dar tempo de ver
   await new Promise(r => setTimeout(r, Math.max(0, 1600 - (performance.now() - inicio))));
+  const soltos = [...(achado.termos ?? [])];
   for (const pagina of c.cancelada ? [] : achado.paginas.slice(0, 3)) {
     c.estado = 'lendo';
     c.legenda = `lendo: ${pagina.titulo.slice(0, 28)}`;
     desenhaLista();
-    const f = new Folha(pagina, achado.termos, c);
-    folhas.push(f);
-    rotulos.push(new Rotulo(pagina.titulo, f.x + 20, f.y + 28, c.cor, f));
-    c.rota = [{ x: f.x - 10, y: f.y + 60 }, ...f.rota];
-    await esperar(() => !c.rota.length);
-    f.saindo = true;
+    // le umas 9 palavras por segundo, entre 6 e 12 s por pagina
+    const palavras = pagina.texto.split(/\s+/).filter(Boolean);
+    const dura = Math.min(12, Math.max(6, palavras.length / 9));
+    c.leitura = { titulo: pagina.titulo, url: pagina.url, palavras, inicio: tempo, dura };
+    const fim = tempo + dura;
+    let proximo = tempo + 1.2;
+    await esperar(() => {
+      // de tempos em tempos um termo sai da cabeca
+      if (tempo > proximo && soltos.length) { rotulos.push(new Rotulo(soltos.shift(), c.cabeca.x, c.cabeca.y, c.cor)); proximo = tempo + 2.2; }
+      return tempo >= fim || c.cancelada;
+    });
     if (c.cancelada) break;
   }
-  if (c.cancelada) { c.cancelada = false; c.estado = 'vagando'; c.legenda = ''; return; }
+  c.leitura = null;
+  if (c.cancelada) { c.cancelada = false; c.leitura = null; c.estado = 'vagando'; c.legenda = ''; return; }
   c.estado = 'digerindo';
   c.legenda = 'digerindo…';
   desenhaLista();
@@ -486,7 +456,7 @@ export function escolherTema(c, sorte = Math.random) {
 
 function cacasSozinhas() {
   if (!sozinhas) return;
-  // uma leitura por vez na tela, para as folhas nao se amontoarem
+  // uma caca por vez, para o terrario nao virar bagunca
   const ocupada = criaturas.some(c => c.estado !== 'vagando');
   for (const c of criaturas) {
     if (c.estado !== 'vagando' || tempo < c.proxima) continue;
@@ -602,6 +572,7 @@ const CHAVES = {
     sim: () => 'Imagem no bloqueio ligada: uma nova a cada Win+L.', nao: () => 'Imagem no bloqueio desligada.' },
 };
 function mostraEstado(e) {
+  naArea = !!e.area;
   for (const [nome, k] of Object.entries(CHAVES)) k.botao.setAttribute('aria-checked', String(!!e[nome]));
 }
 for (const [nome, k] of Object.entries(CHAVES)) k.botao.addEventListener('click', async () => {
@@ -648,8 +619,6 @@ function quadro(agora) {
   const dt = Math.min(0.05, (agora - antes) / 1000);
   antes = agora; tempo += dt;
   desenhaFundo(dt);
-  for (const f of folhas) { f.atualizar(dt); f.desenhar(); }
-  folhas = folhas.filter(f => !(f.saindo && f.alfa === 0));
   for (const r of rotulos) { r.atualizar(dt); r.desenhar(); }
   rotulos = rotulos.filter(r => r.vida > 0).slice(-80);
   for (const o of ondas) {
@@ -659,7 +628,13 @@ function quadro(agora) {
     ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 6.28); ctx.stroke();
   }
   ondas = ondas.filter(o => o.vida > 0);
-  for (const c of criaturas) { c.atualizar(dt); c.desenhar(c === escolhida); }
+  // na area de trabalho elas passeiam fora; aqui fica so o aviso (sem duplicar)
+  if (naArea) desenhaFora();
+  else {
+    for (const c of criaturas) { c.atualizar(dt); c.desenhar(c === escolhida); }
+    const sob = maisPerto(mouse, 70);
+    if (sob?.leitura) desenhaCartao(sob);
+  }
   for (const o of orbes) { o.atualizar(dt); o.desenhar(); }
   orbes = orbes.filter(o => o.fim);
   desenhaVidro();

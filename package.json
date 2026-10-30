@@ -1,6 +1,6 @@
 {
   "name": "terrario",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Terrario de criaturas digitais animadas, cada uma movida por um agente que caca temas na web e grava o que aprende em markdown.",
   "type": "module",
