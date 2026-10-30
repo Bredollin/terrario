@@ -4,6 +4,9 @@ import { createServer } from 'node:http';
 export const PAGINAS = {
   Centopeia: 'Centopeias sao artropodes de corpo segmentado. Cada segmento tem um par de pernas. O primeiro par virou forcipulas com veneno. Vivem no solo humido e cacam a noite.',
   Miriapode: 'Miriapodes reunem centopeias e piolhos-de-cobra. Possuem muitas pernas e corpo segmentado. Respiram por traqueias.',
+  // pagina longa, do tamanho de um resumo real da Wikipedia (enche as 7 linhas da folha)
+  Artropode: 'Os artropodes formam o maior filo do reino animal, com mais de um milhao de especies descritas. '.repeat(6)
+    + 'Possuem exoesqueleto de quitina, corpo segmentado e apendices articulados, e trocam de pele em mudas sucessivas.',
 };
 
 export function wikiFalsa() {

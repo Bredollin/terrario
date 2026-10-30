@@ -1,13 +1,16 @@
-// App de desktop do Terrario: sobe o servidor local, mostra o terrario e,
-// se ligado, pinta uma tela de bloqueio nova a cada bloqueio do Windows.
-import { app, BrowserWindow, Tray, Menu, nativeImage, powerMonitor, screen, shell, Notification, ipcMain } from 'electron';
+// App de desktop do Terrario: sobe o servidor local, mostra o terrario, solta
+// as criaturas na area de trabalho, roda o protetor de tela animado e, se
+// ligado, pinta uma imagem nova para a tela de bloqueio a cada bloqueio.
+// Chamado como protetor de tela (Terrario.scr /s, /p, /c) so roda o protetor.
+import { app, BrowserWindow, Tray, Menu, nativeImage, powerMonitor, screen, shell, Notification, ipcMain, dialog } from 'electron';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFile, writeFile, mkdir, readdir, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, rm, copyFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { criarServidor } from '../server.mjs';
 import { criarCacador } from '../src/cacador.mjs';
 import { SCRIPT_BLOQUEIO } from './bloqueio-ps.mjs';
+import { SCRIPT_LIGAR_PROTETOR, SCRIPT_DESLIGAR_PROTETOR } from './protetor-ps.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const ICONE = join(AQUI, '..', 'build', 'icon.png');
@@ -16,8 +19,17 @@ const TELAS = join(PASTA, 'telas');
 const CONFIG = join(app.getPath('userData'), 'config.json');
 const MANTER_TELAS = 12;
 
-let cfg = { criaturas: true, bloqueio: false, iniciarComWindows: false, ligadas: [], saida: join(PASTA, 'conhecimento') };
-let base = '', janela = null, bandeja = null, saindo = false, gerando = null;
+const MINUTOS = [1, 3, 5, 10, 15, 30];
+
+let cfg = { criaturas: true, bloqueio: false, area: false, protetor: false, protetorMinutos: 5, iniciarComWindows: false,
+  ligadas: [], elenco: [], saida: join(PASTA, 'conhecimento') };
+let base = '', janela = null, bandeja = null, saindo = false, gerando = null, area = null, protetores = [];
+
+// Windows chama o protetor de tela com /s (mostrar), /p <janela> (miniatura) ou
+// /c (configurar); clicar duas vezes no .scr nao manda nada e conta como /c.
+const executavel = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+const argProtetor = process.argv.slice(1).map(a => /^[/-]([scp])(\b|:|$)/i.exec(a)?.[1].toLowerCase()).find(Boolean);
+const modoProtetor = argProtetor ?? (/\.scr$/i.test(executavel) ? 'c' : null);
 
 async function lerConfig() {
   try { cfg = { ...cfg, ...JSON.parse(await readFile(CONFIG, 'utf8')) }; } catch {}
@@ -83,14 +95,19 @@ async function gerarTela() {
   }
 }
 
-async function aplicarTela(arquivo) {
-  if (process.platform !== 'win32') throw new Error('Trocar a tela de bloqueio so funciona no Windows.');
-  const script = join(app.getPath('userData'), 'bloqueio.ps1');
-  await writeFile(script, SCRIPT_BLOQUEIO);
-  await new Promise((ok, falha) => execFile('powershell.exe',
-    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, '-Imagem', arquivo],
+// roda um script do Windows PowerShell 5.1 com tempo limite; parametros vao como argumentos, nunca no texto
+async function powershell(nome, texto, args) {
+  const script = join(app.getPath('userData'), nome);
+  await writeFile(script, texto);
+  return new Promise((ok, falha) => execFile('powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, ...args],
     { timeout: 40000, windowsHide: true },
     (erro, saida, err) => erro ? falha(new Error((err || erro.message).trim().split('\n')[0])) : ok(saida)));
+}
+
+async function aplicarTela(arquivo) {
+  if (process.platform !== 'win32') throw new Error('Trocar a tela de bloqueio so funciona no Windows.');
+  await powershell('bloqueio.ps1', SCRIPT_BLOQUEIO, ['-Imagem', arquivo]);
 }
 
 // uma de cada vez: se ja esta gerando, espera a mesma
@@ -109,20 +126,120 @@ function novaTela({ mostrar = false } = {}) {
   return gerando;
 }
 
+// ------------------------------------------------------------ area de trabalho
+// Janela transparente do tamanho da tela (sem a barra de tarefas), sempre no
+// topo, que nao pega foco e deixa o clique passar para o que esta embaixo.
+function abrirArea() {
+  if (area) return;
+  const { workArea } = screen.getPrimaryDisplay();
+  area = new BrowserWindow({
+    ...workArea, show: false, transparent: true, frame: false, resizable: false, movable: false, focusable: false,
+    skipTaskbar: true, hasShadow: false, alwaysOnTop: true, backgroundColor: '#00000000', title: 'Terrário · área de trabalho',
+    webPreferences: { contextIsolation: true, sandbox: true, preload: join(AQUI, 'preload-area.cjs'), backgroundThrottling: false },
+  });
+  area.setAlwaysOnTop(true, 'floating');
+  area.setIgnoreMouseEvents(true, { forward: true });
+  area.setVisibleOnAllWorkspaces(true);
+  area.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  area.webContents.on('will-navigate', e => e.preventDefault());
+  area.once('ready-to-show', () => area?.showInactive());
+  area.on('closed', () => { area = null; });
+  area.loadURL(`${base}/area.html`);
+}
+function fecharArea() { area?.destroy(); area = null; }
+function enviarArea() { area?.webContents.send('area:criaturas', cfg.elenco); }
+function ajustarArea() { if (area) area.setBounds(screen.getPrimaryDisplay().workArea); }
+ipcMain.on('area:pronta', enviarArea);
+
+// ------------------------------------------------------------ protetor de tela
+// Uma janela em tela cheia por monitor. Qualquer tecla, clique ou mexida fecha.
+function verProtetor({ aoSair } = {}) {
+  if (protetores.length) return;
+  const semente = new Date().toISOString();
+  protetores = screen.getAllDisplays().map((tela, i) => {
+    const w = new BrowserWindow({
+      ...tela.bounds, show: false, frame: false, fullscreen: true, alwaysOnTop: true, skipTaskbar: true,
+      backgroundColor: '#02030a', title: 'Terrário · protetor de tela',
+      webPreferences: { contextIsolation: true, sandbox: true, preload: join(AQUI, 'preload-protetor.cjs') },
+    });
+    w.setAlwaysOnTop(true, 'screen-saver');
+    w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    w.webContents.on('will-navigate', e => e.preventDefault());
+    w.once('ready-to-show', () => { w.show(); if (i === 0) w.focus(); });
+    // cada monitor com um desenho proprio; o relogio so no principal
+    const principal = tela.id === screen.getPrimaryDisplay().id;
+    w.loadURL(`${base}/protetor.html?${new URLSearchParams({ semente: `${semente}:${i}`, relogio: principal ? '1' : '0' })}`);
+    w.on('closed', () => { protetores = protetores.filter(x => x !== w); if (!protetores.length) aoSair?.(); });
+    return w;
+  });
+}
+function fecharProtetor() { for (const w of [...protetores]) w.destroy(); }
+ipcMain.on('protetor:sair', fecharProtetor);
+
+// O .scr e uma copia do proprio Terrario.exe; o Windows chama ele quando o PC fica parado.
+const SCR = join(process.env.LOCALAPPDATA || app.getPath('userData'), 'Terrario', 'Terrario.scr');
+async function instalarProtetor() {
+  if (process.platform !== 'win32') throw new Error('O protetor de tela so instala no Windows.');
+  if (!process.env.PORTABLE_EXECUTABLE_FILE) throw new Error('Abra pelo Terrario.exe para instalar o protetor.');
+  await mkdir(dirname(SCR), { recursive: true });
+  if (executavel.toLowerCase() !== SCR.toLowerCase()) await copyFile(executavel, SCR);
+  await powershell('protetor.ps1', SCRIPT_LIGAR_PROTETOR, ['-Scr', SCR, '-Minutos', String(cfg.protetorMinutos)]);
+}
+async function desinstalarProtetor() {
+  if (process.platform !== 'win32') return;
+  await powershell('protetor-off.ps1', SCRIPT_DESLIGAR_PROTETOR, ['-Scr', SCR]);
+}
+
 // ------------------------------------------------------------ ponte com a tela
-ipcMain.on('terrario:ligadas', (_e, ids) => {
-  if (!Array.isArray(ids)) return;
-  cfg.ligadas = ids.filter(i => typeof i === 'string' && /^[\w-]{1,40}$/.test(i)).slice(0, 40);
+const estado = () => ({ bloqueio: cfg.bloqueio, criaturas: cfg.criaturas, area: cfg.area, protetor: cfg.protetor, protetorMinutos: cfg.protetorMinutos });
+function avisarTela() { janela?.webContents.send('terrario:estado', estado()); }
+const COR = /^#[0-9a-f]{6}$/i, ID = /^[\w-]{1,40}$/;
+ipcMain.on('terrario:ligadas', (_e, lista) => {
+  if (!Array.isArray(lista)) return;
+  // aceita so ids (versao velha) ou {id, nome, cor, n, vel}
+  cfg.elenco = lista.slice(0, 40).map(d => typeof d === 'string' ? { id: d } : d).filter(d => d && ID.test(d.id ?? ''))
+    .map(d => ({ id: d.id, nome: String(d.nome ?? d.id).slice(0, 40), cor: COR.test(d.cor) ? d.cor : '#ffd23f',
+      n: Math.max(6, Math.min(20, Math.round(Number(d.n) || 12))), vel: Math.max(0.3, Math.min(2, Number(d.vel) || 1)) }));
+  cfg.ligadas = cfg.elenco.map(d => d.id);
+  enviarArea();
   salvarConfig().catch(() => {});
 });
-ipcMain.handle('terrario:estado', () => ({ bloqueio: cfg.bloqueio, criaturas: cfg.criaturas }));
+ipcMain.handle('terrario:estado', estado);
 ipcMain.handle('terrario:bloqueio', async (_e, liga) => {
   if (liga) await novaTela({ mostrar: true }); // so liga se conseguiu trocar
   cfg.bloqueio = liga;
   await salvarConfig();
   montarMenu();
-  return cfg.bloqueio;
+  return estado();
 });
+ipcMain.handle('terrario:area', async (_e, liga) => { await mudarArea(liga); return estado(); });
+ipcMain.handle('terrario:protetor', async (_e, liga) => { await mudarProtetor(liga); return estado(); });
+ipcMain.handle('terrario:ver-protetor', () => verProtetor());
+
+async function mudarArea(liga) {
+  cfg.area = liga;
+  liga ? abrirArea() : fecharArea();
+  await salvarConfig();
+  montarMenu(); avisarTela();
+}
+async function mudarProtetor(liga) {
+  try {
+    liga ? await instalarProtetor() : await desinstalarProtetor();
+  } catch (e) {
+    avisar('Protetor de tela', `Nao consegui: ${e.message}`);
+    montarMenu(); avisarTela();
+    throw e;
+  }
+  cfg.protetor = liga;
+  await salvarConfig();
+  montarMenu(); avisarTela();
+}
+async function mudarMinutos(m) {
+  cfg.protetorMinutos = m;
+  await salvarConfig();
+  if (cfg.protetor) await instalarProtetor().catch(e => avisar('Protetor de tela', `Nao consegui: ${e.message}`));
+  montarMenu(); avisarTela();
+}
 
 // ------------------------------------------------------------ bandeja
 function montarMenu() {
@@ -131,8 +248,14 @@ function montarMenu() {
     { label: 'Abrir terrário', click: abrirTerrario, enabled: cfg.criaturas },
     { type: 'separator' },
     { label: 'Criaturas', type: 'checkbox', checked: cfg.criaturas, click: alternar('criaturas', liga => liga ? abrirTerrario() : fecharTerrario()) },
-    { label: 'Tela de bloqueio generativa', type: 'checkbox', checked: cfg.bloqueio, click: alternar('bloqueio', liga => liga && novaTela({ mostrar: true }).catch(() => {})) },
-    { label: 'Gerar tela de bloqueio agora', click: () => novaTela({ mostrar: true }).catch(() => {}) },
+    { label: 'Criaturas na área de trabalho', type: 'checkbox', checked: cfg.area, click: item => mudarArea(item.checked) },
+    { type: 'separator' },
+    { label: 'Protetor de tela animado', type: 'checkbox', checked: cfg.protetor, click: item => mudarProtetor(item.checked).catch(() => {}) },
+    { label: 'Protetor entra depois de', submenu: MINUTOS.map(m => ({ label: `${m} min`, type: 'radio', checked: cfg.protetorMinutos === m, click: () => mudarMinutos(m) })) },
+    { label: 'Ver protetor de tela agora', click: () => verProtetor() },
+    { type: 'separator' },
+    { label: 'Imagem nova na tela de bloqueio', type: 'checkbox', checked: cfg.bloqueio, click: alternar('bloqueio', liga => liga && novaTela({ mostrar: true }).catch(() => {})) },
+    { label: 'Gerar imagem de bloqueio agora', click: () => novaTela({ mostrar: true }).catch(() => {}) },
     { type: 'separator' },
     { label: 'Abrir pasta das telas', click: async () => { await mkdir(TELAS, { recursive: true }); shell.openPath(TELAS); } },
     { label: 'Abrir pasta do conhecimento', click: async () => { await mkdir(cfg.saida, { recursive: true }); shell.openPath(cfg.saida); } },
@@ -141,11 +264,25 @@ function montarMenu() {
     { type: 'separator' },
     { label: 'Sair', click: () => { saindo = true; app.quit(); } },
   ]));
-  bandeja.setToolTip(`Terrário · criaturas ${cfg.criaturas ? 'ligadas' : 'desligadas'} · tela de bloqueio ${cfg.bloqueio ? 'ligada' : 'desligada'}`);
+  bandeja.setToolTip(`Terrário · área de trabalho ${cfg.area ? 'ligada' : 'desligada'} · protetor ${cfg.protetor ? `${cfg.protetorMinutos} min` : 'desligado'}`);
+  avisarTela();
 }
 
 // ------------------------------------------------------------ inicio
-if (!app.requestSingleInstanceLock()) app.quit();
+if (modoProtetor) {
+  // processo so do protetor: nao pega a trava do app, nao mexe na config nem na bandeja
+  app.on('window-all-closed', () => app.quit());
+  app.whenReady().then(async () => {
+    if (modoProtetor === 'p') return app.quit(); // miniatura da janela do Windows: fica vazia
+    if (modoProtetor === 'c') {
+      await dialog.showMessageBox({ type: 'info', title: 'Terrário', message: 'Protetor de tela do Terrário',
+        detail: 'Sete movimentos abstratos que se revezam sozinhos. Para mudar o tempo, use o ícone do Terrário na bandeja: "Protetor entra depois de".' });
+      return app.quit();
+    }
+    await subirServidor();
+    verProtetor({ aoSair: () => app.quit() });
+  });
+} else if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => cfg.criaturas && abrirTerrario());
   app.on('window-all-closed', () => {}); // vive na bandeja
@@ -158,8 +295,16 @@ else {
     bandeja.on('click', () => cfg.criaturas && abrirTerrario());
     montarMenu();
     if (cfg.criaturas && !process.argv.includes('--bandeja')) abrirTerrario();
+    if (cfg.area) abrirArea();
+    screen.on('display-metrics-changed', ajustarArea);
+    screen.on('display-added', ajustarArea);
+    screen.on('display-removed', ajustarArea);
+    // bloqueado ninguem ve: a area de trabalho para de desenhar
+    powerMonitor.on('lock-screen', () => area?.hide());
+    powerMonitor.on('unlock-screen', () => area?.showInactive());
     // a cada bloqueio, pinta a proxima tela
     powerMonitor.on('lock-screen', () => cfg.bloqueio && novaTela().catch(() => {}));
-    if (process.env.TERRARIO_TESTE) globalThis.terrarioTeste = { gerarTela, get base() { return base; }, get cfg() { return cfg; } };
+    if (process.env.TERRARIO_TESTE) globalThis.terrarioTeste = { gerarTela, verProtetor, fecharProtetor,
+      get area() { return area; }, get protetores() { return protetores; }, get base() { return base; }, get cfg() { return cfg; } };
   });
 }

@@ -43,6 +43,9 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 .rotulo { font: 11px var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--apagado); margin-right: auto; }
 .rotulo b { font-weight: 400; letter-spacing: .05em; text-transform: none; color: var(--ambar); margin-left: 6px; }
 button.mini { padding: 4px 9px; font-size: 10.5px; border-radius: 8px; }
+.sozinhas::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #5d6488; }
+.sozinhas[aria-checked="true"] { border-color: #5effc8; color: #c8fff0; }
+.sozinhas[aria-checked="true"]::before { background: #5effc8; box-shadow: 0 0 8px #5effc8; }
 .chip {
   display: inline-flex; align-items: center; gap: 0; padding: 0;
   border-radius: 999px; border: 1px solid transparent; background: rgba(255, 255, 255, 0.04);
@@ -59,9 +62,12 @@ button.mini { padding: 4px 9px; font-size: 10.5px; border-radius: 8px; }
 .chip .liga[aria-checked="true"] { background: color-mix(in srgb, var(--c) 28%, transparent); border-color: var(--c); }
 .chip .liga[aria-checked="true"]::after { transform: translateX(12px); background: var(--c); box-shadow: 0 0 10px var(--c); }
 .chip[aria-current="true"] { border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
-.bloqueio::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #5d6488; vertical-align: 0; }
-.bloqueio[aria-checked="true"] { border-color: #b18cff; background: rgba(177, 140, 255, .14); }
-.bloqueio[aria-checked="true"]::before { background: #b18cff; box-shadow: 0 0 10px #b18cff; }
+/* chaves dos modos: bolinha apagada / acesa na cor do modo */
+.chave { --k: #b18cff; white-space: nowrap; }
+.chave::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #5d6488; vertical-align: 0; transition: background .2s, box-shadow .2s; }
+button.mini.chave::before { width: 6px; height: 6px; margin-right: 6px; vertical-align: 1px; }
+.chave[aria-checked="true"] { border-color: var(--k); background: color-mix(in srgb, var(--k) 14%, transparent); }
+.chave[aria-checked="true"]::before { background: var(--k); box-shadow: 0 0 10px var(--k); }
 .previa { position: fixed; inset: 0; background: rgba(1, 2, 7, .85); display: grid; place-items: center; z-index: 10; }
 .previa[hidden] { display: none; }
 .previa iframe { width: min(92vw, calc(82vh * 16 / 9)); aspect-ratio: 16 / 9; border: 1px solid var(--borda); border-radius: 14px; background: #010207; box-shadow: 0 30px 90px rgba(0,0,0,.7); }

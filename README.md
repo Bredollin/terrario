@@ -8,11 +8,13 @@ Inspiração: o vídeo "Crawlers" (criaturas que exploram a web). Aqui não há 
 
 ## App de Windows
 
-Baixe `Terrario.exe` (portátil, não instala nada) e abra. O terrário abre e fica um ícone na bandeja.
+Baixe o `Terrario.exe` da [última Release](../../releases/latest) (portátil, não instala nada) e abra. O GitHub gera o exe sozinho a cada merge na `main`. O terrário abre e fica um ícone na bandeja.
 
 - **Criaturas**: uma para cada agente do Brain (Xavier, Professor, Revisor, Batman, Ciborgue, Visão, Stark, Oráculo, Mímir, Thoth, Íris, Iara, Skuld, Odin, Heimdall). Cada uma tem sua chave: ligue uma, várias ou todas (*ligar todas* / *desligar todas*). Só as ligadas andam no terrário.
-- **Tela de bloqueio**: o botão *tela de bloqueio* liga e desliga. Ligada, cada vez que o Windows bloqueia (Win+L) o app pinta uma imagem nova e única com as criaturas ligadas e os termos que elas aprenderam, e ela aparece no próximo bloqueio. *Prévia* mostra uma na hora.
-- **Bandeja**: abrir o terrário, ligar/desligar as criaturas e a tela de bloqueio, gerar uma tela agora, abrir as pastas, iniciar com o Windows, sair. Fechar a janela não fecha o app.
+- **Área de trabalho**: *soltar na área de trabalho* (no app ou na bandeja) põe as criaturas ligadas andando pela tela toda, por cima das janelas. O clique passa por elas e elas saem da frente do mouse. Ligar ou desligar uma criatura no terrário vale lá também.
+- **Protetor de tela animado**: a chave *protetor de tela* instala o Terrário como protetor de tela do Windows, com *exibir a tela de logon* ligado. Com o PC parado (5 min; muda na bandeja), entram animações abstratas que mudam o tempo todo (sem criaturas) e, ao mexer, o Windows pede a senha. *Prévia* mostra rodando; *tela cheia* mostra como fica.
+- **Imagem no bloqueio**: a tela de bloqueio do Windows só aceita imagem parada. Ligada, a cada Win+L o app guarda um instante do protetor e ele aparece no próximo bloqueio.
+- **Bandeja**: abrir o terrário, criaturas, área de trabalho, protetor (liga, tempo, ver agora), imagem no bloqueio, pastas, iniciar com o Windows, sair. Fechar a janela não fecha o app.
 - Arquivos em `Documentos\Terrario`: `conhecimento\` (markdown) e `telas\` (as últimas 12 imagens).
 
 A troca da tela de bloqueio usa a API do próprio Windows (via Windows PowerShell, sem administrador). Se a tela de bloqueio estiver em *Windows em destaque* (Spotlight) ou se uma política da empresa travar a personalização, o Windows pode ignorar a troca: o app avisa com a mensagem do erro.
@@ -44,6 +46,7 @@ A chave nunca vai para arquivo nem para o repositório: só variável de ambient
 - **Cutucar**: clique numa criatura.
 - **Batizar** (no próprio campo) e **+ criatura** (criaturas novas, fora do elenco). Até 20 ligadas ao mesmo tempo.
 - Campo vazio + *Caçar*: a criatura caça o tema favorito dela (ex.: Batman caça segurança da informação).
+- **Caçam sozinhas** (ligado por padrão): sem tema dado, cada criatura ligada escolhe o que pesquisar (curiosidades do seu papel ou pistas do que leu antes) e caça a cada 3 minutos. Uma leitura por vez na tela.
 - Abrir `public/index.html` direto, ou com `?demo`, roda uma demonstração sem servidor (nada é gravado).
 
 ## Privacidade
@@ -54,12 +57,14 @@ A criatura **não** lê a tela, arquivos nem o que você faz. Ela só lê o que 
 
 ```bash
 npm test             # agente, markdown e servidor (com uma Wikipedia falsa)
-npm run test:ui      # abre no Chromium, liga/desliga criaturas, gera a prévia, faz uma caçada e grava capturas
-npm run test:app     # abre o app (Electron) e gera uma tela de bloqueio; no Linux: xvfb-run -a npm run test:app
+npm run test:ui      # Chromium: criaturas, prévia do protetor, caçada, cada movimento do protetor, imagem de bloqueio e área de trabalho
+npm run test:app     # Electron: tela de bloqueio, área de trabalho transparente, protetor e o .scr com /s e /p; no Linux: xvfb-run -a npm run test:app
 ```
 
 ## Próximos passos
 
 Veja [docs/conceito.md](docs/conceito.md). Celular fica para depois.
 
-![tela de bloqueio](docs/capturas/bloqueio-exemplo.png)
+![protetor de tela: seis dos sete movimentos](docs/capturas/protetor-movimentos.png)
+
+![criaturas soltas na área de trabalho](docs/capturas/08-area-de-trabalho.png)

@@ -42,7 +42,7 @@ test('link da rede interna e recusado', async () => {
 
 test('caca um tema e le as paginas', async () => {
   const r = await criarCacador({ wiki: base })({ tema: 'centopeia' });
-  assert.deepEqual(r.paginas.map(p => p.titulo), ['Centopeia', 'Miriapode']);
+  assert.deepEqual(r.paginas.map(p => p.titulo), ['Centopeia', 'Miriapode', 'Artropode']);
   assert.match(r.resumo, /\*\*Centopeia\*\*/);
   assert.equal(r.fonte, 'extrativo');
   assert.ok(r.termos.includes('segmentado'));

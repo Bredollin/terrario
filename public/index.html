@@ -19,6 +19,8 @@
   <section class="doca" aria-label="Controles">
     <div class="topo-elenco">
       <span class="rotulo">criaturas <b id="contagem"></b></span>
+      <button type="button" class="mini sozinhas" id="btn-sozinhas" role="switch" aria-checked="true" title="Sem tema dado, cada criatura escolhe um e caça a cada 3 minutos">caçam sozinhas</button>
+      <button type="button" class="mini chave" id="btn-area" role="switch" aria-checked="false" style="--k:#ffd23f" title="As criaturas ligadas saem do terrário e andam pela tela toda, por cima das janelas, sem atrapalhar o clique">soltar na área de trabalho</button>
       <button type="button" class="mini" id="btn-todas">ligar todas</button>
       <button type="button" class="mini" id="btn-nenhuma">desligar todas</button>
     </div>
@@ -32,8 +34,9 @@
       <button type="button" id="btn-nova" title="Chocar uma criatura nova">+ criatura</button>
       <button type="button" id="btn-batizar" title="Dar outro nome à criatura escolhida">batizar</button>
       <button type="button" id="btn-saber" class="saber">conhecimento <b id="qtd">0</b></button>
-      <button type="button" id="btn-bloqueio" class="bloqueio" role="switch" aria-checked="false" title="Tela de bloqueio nova a cada bloqueio do Windows">tela de bloqueio</button>
-      <button type="button" id="btn-previa" title="Ver uma tela de bloqueio gerada agora">prévia</button>
+      <button type="button" id="btn-protetor" class="chave" role="switch" aria-checked="false" style="--k:#3ee6ff" title="Protetor de tela animado do Windows: entra quando o PC fica parado e, ao sair, pede a senha">protetor de tela</button>
+      <button type="button" id="btn-bloqueio" class="chave" role="switch" aria-checked="false" title="Uma imagem nova (um instante do protetor) na tela de bloqueio a cada Win+L">imagem no bloqueio</button>
+      <button type="button" id="btn-previa" title="Ver o protetor de tela rodando">prévia</button>
     </div>
   </section>
 
@@ -47,10 +50,11 @@
   </aside>
 
   <div class="previa" id="previa" hidden>
-    <iframe id="previa-quadro" title="Prévia da tela de bloqueio"></iframe>
+    <iframe id="previa-quadro" title="Prévia do protetor de tela" allow="fullscreen"></iframe>
     <div class="previa-barra">
       <span id="previa-legenda"></span>
-      <button type="button" id="previa-outra">outra</button>
+      <button type="button" id="previa-outra">próximo movimento</button>
+      <button type="button" id="previa-cheia">tela cheia</button>
       <button type="button" id="previa-fechar">fechar</button>
     </div>
   </div>
