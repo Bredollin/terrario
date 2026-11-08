@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 (2026-11-08)
+
+- **Quadro de curiosidades** (`/quadro.html`): tela para a TV da sala. Cada caçada do terrário vira uma ficha com a foto do artigo da Wikipédia, o nome, duas frases e um número curioso, e quem caçou. Troca a cada minuto, mostra as três seguintes, e escurece das 22h às 6h. No canto superior direito: hora, dia, data e clima (Open-Meteo, sem chave; padrão Goiânia, troque com `TERRARIO_LAT`/`TERRARIO_LON`).
+- Sem ninguém no terrário, o próprio quadro manda uma criatura caçar a cada `intervalo` (padrão 180 s).
+- Com `ANTHROPIC_API_KEY`, a ficha sai mais caprichada (categoria, onde fica, texto simples); sem chave, usa as primeiras frases e o primeiro número com unidade.
+- Fichas e fotos ficam em cache em `<conhecimento>/.quadro/`.
+- `linux/terrario-quiosque.sh quadro` abre o quadro no monitor em vez do terrário.
+
 ## 0.4.0 (2026-11-08)
 
 - **Modo quiosque** (`?quiosque`): para um monitor sem mouse nem teclado. Só o terrário em tela cheia, sem controles nem cursor, todas as criaturas do elenco ligadas e caçando sozinhas.

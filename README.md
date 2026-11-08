@@ -32,6 +32,14 @@ terrario/linux/terrario-quiosque.sh       # rode no console (tty) do monitor, lo
 terrario/linux/terrario-quiosque.sh parar # fecha (pode ser por SSH)
 ```
 
+### Quadro de curiosidades (TV da sala)
+
+```bash
+terrario/linux/terrario-quiosque.sh quadro   # abre o quadro em vez do terrário
+```
+
+Cada caçada vira uma ficha com foto da Wikipédia, nome, duas frases e um número curioso; hora, data e clima no canto. `TERRARIO_TROCA` muda os segundos por curiosidade (padrão 60); `TERRARIO_LAT`/`TERRARIO_LON` a cidade do clima (padrão Goiânia). No navegador: `http://127.0.0.1:4747/quadro.html`. Precisa de internet para fotos e clima; sem ela, mostra a ficha com fundo colorido.
+
 O markdown vai para `~/terrario/conhecimento` (troque com `TERRARIO_SAIDA`); `TERRARIO_INTERVALO` muda os segundos entre caçadas (padrão 180). No navegador, o mesmo modo abre com `http://127.0.0.1:4747/?quiosque`. O pacote sai com `npm run dist:linux`.
 
 ## Rodar no navegador

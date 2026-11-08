@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quadro de Curiosidades</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="quadro.css">
+</head>
+<body>
+  <main class="tv" id="tv" aria-label="Quadro de curiosidades">
+    <div id="fundos"></div>
+
+    <section class="quadro" id="quadro">
+      <div class="foto" id="fotos"><span class="onde" id="onde" hidden></span></div>
+      <div class="texto" id="texto">
+        <span class="chip" id="chip">Curiosidade</span>
+        <h1 id="titulo">As criaturas estão caçando</h1>
+        <p id="desc">A primeira curiosidade aparece aqui assim que uma criatura do Terrário voltar da caçada.</p>
+        <div class="num" id="num" hidden><b id="numero"></b><span id="legenda"></span></div>
+        <div class="por"><i id="cor"></i><span id="por">Terrário</span></div>
+      </div>
+    </section>
+
+    <aside class="canto">
+      <div class="hora" id="hora">--:--</div>
+      <div class="data" id="data"></div>
+      <div class="clima" id="clima" hidden><i id="sol"></i><span id="tempo"></span></div>
+    </aside>
+
+    <aside class="seguir" id="seguir" hidden><small>A seguir</small></aside>
+
+    <footer class="faixa"><span id="contagem"></span><div class="barra"><i id="barra"></i></div><span id="ritmo"></span></footer>
+  </main>
+  <script type="module" src="quadro.js"></script>
+</body>
+</html>
