@@ -440,8 +440,11 @@ async function cacar(c, pedido) {
 // Ligada e sem tema dado, a criatura escolhe o que quer pesquisar: ora uma
 // curiosidade do seu papel, ora uma pista do que leu na ultima caca.
 const INTERVALO = Number(new URLSearchParams(location.search).get('intervalo')) || 180;
+// ?quiosque: monitor sem mouse nem teclado (ex.: a sala do Asgard). Sem
+// controles na tela, todas as criaturas ligadas e cacando sozinhas.
+const QUIOSQUE = new URLSearchParams(location.search).has('quiosque');
 let sozinhas = true;
-try { sozinhas = localStorage.getItem('terrario.sozinhas') !== 'nao'; } catch {}
+try { sozinhas = QUIOSQUE || localStorage.getItem('terrario.sozinhas') !== 'nao'; } catch {}
 
 export function escolherTema(c, sorte = Math.random) {
   const ja = new Set(c.historico);
@@ -651,6 +654,7 @@ for (const d of ELENCO) {
   else elenco.push({ ...d, ativa: false });
 }
 criaturas = elenco.filter(d => d.ativa).map(d => new Criatura(d));
+if (QUIOSQUE) { document.body.classList.add('quiosque'); todas(true); }
 escolher(criaturas[0]);
 ponte?.ligadas(paraOApp());
 carregarConhecimento();

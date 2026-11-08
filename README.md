@@ -21,6 +21,19 @@ A troca da tela de bloqueio usa a API do próprio Windows (via Windows PowerShel
 
 Para gerar o `.exe`: `npm install` e `npm run dist` (sai em `dist/Terrario.exe`).
 
+## Monitor sem área de trabalho (Linux, ex.: Asgard)
+
+Modo quiosque: só o terrário em tela cheia, sem controles nem cursor, as 15 criaturas ligadas e caçando sozinhas. Não precisa de área de trabalho: o `cage` abre uma janela só, direto no console.
+
+```bash
+sudo apt install nodejs cage chromium     # uma vez
+tar xzf terrario-linux-0.4.0.tar.gz       # da Release, ou use o clone do repositório
+terrario/linux/terrario-quiosque.sh       # rode no console (tty) do monitor, logado
+terrario/linux/terrario-quiosque.sh parar # fecha (pode ser por SSH)
+```
+
+O markdown vai para `~/terrario/conhecimento` (troque com `TERRARIO_SAIDA`); `TERRARIO_INTERVALO` muda os segundos entre caçadas (padrão 180). No navegador, o mesmo modo abre com `http://127.0.0.1:4747/?quiosque`. O pacote sai com `npm run dist:linux`.
+
 ## Rodar no navegador
 
 ```bash

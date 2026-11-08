@@ -129,6 +129,10 @@ button:active { transform: translateY(1px); }
 }
 .aviso.ver { opacity: 1; transform: translate(-50%, 0); }
 
+/* ?quiosque: so o terrario, sem controles nem cursor */
+body.quiosque, body.quiosque canvas { cursor: none !important; }
+body.quiosque .doca, body.quiosque .dica { display: none; }
+
 @media (max-width: 720px) {
   .marca { top: 20px; left: 20px; }
   .dica { display: none; }
