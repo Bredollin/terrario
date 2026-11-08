@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 (2026-11-08)
+
+- **Modo quiosque** (`?quiosque`): para um monitor sem mouse nem teclado. Só o terrário em tela cheia, sem controles nem cursor, todas as criaturas do elenco ligadas e caçando sozinhas.
+- **Linux sem área de trabalho** (`linux/terrario-quiosque.sh`): sobe o servidor em 127.0.0.1 e abre o Chromium em quiosque pelo `cage`, direto no console; `parar` fecha. Feito para o monitor da sala do Asgard (Debian 13).
+- `npm run dist:linux` gera `terrario-linux-<versão>.tar.gz`; o GitHub anexa o pacote na Release junto com o exe.
+
 ## 0.3.1 (2026-10-30)
 
 - Área de trabalho: as criaturas ligadas saem do terrário (não aparecem mais duplicadas dentro e fora); o terrário mostra um aviso. A janela transparente aparece ao carregar a página (antes dependia do `ready-to-show`, que pode não vir no Windows) e fica no nível mais alto.
