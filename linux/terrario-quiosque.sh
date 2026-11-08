@@ -10,7 +10,7 @@
 # Precisa de: nodejs (20+), cage e chromium.
 # Variaveis: TERRARIO_SAIDA (markdown; padrao ~/terrario/conhecimento),
 # PORT (padrao 4747), TERRARIO_INTERVALO (segundos entre cacadas; padrao 180),
-# TERRARIO_TROCA (segundos por curiosidade no quadro; padrao 60),
+# TERRARIO_TROCA (segundos por curiosidade no quadro; padrao 30),
 # TERRARIO_LAT/TERRARIO_LON (clima do quadro; padrao Goiania).
 set -eu
 
@@ -19,7 +19,7 @@ PORTA=${PORT:-4747}
 ESTADO=${XDG_STATE_HOME:-$HOME/.local/state}/terrario
 SAIDA=${TERRARIO_SAIDA:-$HOME/terrario/conhecimento}
 INTERVALO=${TERRARIO_INTERVALO:-180}
-TROCA=${TERRARIO_TROCA:-60}
+TROCA=${TERRARIO_TROCA:-30}
 TELA="/?quiosque&intervalo=$INTERVALO"
 [ "${1:-}" = quadro ] && TELA="/quadro.html?intervalo=$INTERVALO&troca=$TROCA"
 

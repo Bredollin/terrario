@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0 (2026-11-08)
+
+- Quadro: cada ficha fica **30 s** na tela (era 1 min) e mostra **até 4 fotos do tema** (a principal e outras fotos grandes do artigo, sem ícones, mapas ou bandeiras), trocando com zoom lento e miniaturas.
+- **Temas variados para a sala** (`public/temas-sala.js`): 156 temas em 10 categorias (lugares, animais, espaço, história, natureza, ciência, invenções, comida, arte, esporte). O quadro caça só temas que ainda não viraram ficha.
+- **Sem repetir**: tema já caçado aparece uma vez só no quadro (a caçada mais nova).
+- Visual mais caprichado: "Você sabia?", cor de cada ficha puxada da criatura que caçou, número em destaque, entrada animada do texto, "A seguir" com a categoria, fundo com vinheta.
+- Fichas antigas são refeitas sozinhas para ganhar as fotos novas.
+
 ## 0.5.0 (2026-11-08)
 
 - **Quadro de curiosidades** (`/quadro.html`): tela para a TV da sala. Cada caçada do terrário vira uma ficha com a foto do artigo da Wikipédia, o nome, duas frases e um número curioso, e quem caçou. Troca a cada minuto, mostra as três seguintes, e escurece das 22h às 6h. No canto superior direito: hora, dia, data e clima (Open-Meteo, sem chave; padrão Goiânia, troque com `TERRARIO_LAT`/`TERRARIO_LON`).

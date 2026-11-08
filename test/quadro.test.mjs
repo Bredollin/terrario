@@ -61,15 +61,27 @@ test('cacada vira ficha com foto da wiki, servida pelo quadro', async () => {
   assert.equal(r.status, 200);
   const fichas = await (await fetch(`${appBase}/api/quadro`)).json();
   assert.equal(fichas.length, 1);
+  assert.equal(fichas[0].tema, 'centopeia');
   const f = fichas[0];
   assert.equal(f.criatura, 'Odin');
   assert.equal(f.titulo, 'Centopeia');
   assert.match(f.imagem, /^\/api\/quadro\/imagem\/[a-z0-9-]+\.png$/);
+  // principal + duas do artigo; logo e miniatura ficam de fora
+  assert.equal(f.imagens.length, 3);
+  assert.equal(f.imagens[0], f.imagem);
   const img = await fetch(appBase + f.imagem);
   assert.equal(img.status, 200);
   assert.equal(img.headers.get('content-type'), 'image/png');
   // segunda chamada vem do cache (mesma ficha)
   assert.deepEqual(await (await fetch(`${appBase}/api/quadro`)).json(), fichas);
+});
+
+test('tema repetido aparece uma vez so, e tema da sala ganha categoria', async () => {
+  await fetch(`${appBase}/api/cacar`, { method: 'POST', body: JSON.stringify({ criatura: 'Mimir', tema: 'centopeia' }) });
+  await fetch(`${appBase}/api/cacar`, { method: 'POST', body: JSON.stringify({ criatura: 'Iris', tema: 'Polvo' }) });
+  const fichas = await (await fetch(`${appBase}/api/quadro`)).json();
+  assert.equal(fichas.filter(f => f.tema === 'centopeia').length, 1);
+  assert.equal(fichas.find(f => f.tema === 'Polvo')?.categoria, 'Animal');
 });
 
 test('imagem do quadro nao sai da pasta', async () => {

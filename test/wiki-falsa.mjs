@@ -25,6 +25,10 @@ const PNG = png(480, 300, (x, y) => {
   if (y > 0.62 + 0.08 * Math.sin(x * 9)) return [70, 150, 95];
   return [120 + 100 * y, 190 + 40 * y, 255];
 });
+const PNG2 = png(480, 300, (x, y) => {
+  if (Math.hypot(x - 0.5, y - 0.55) < 0.22) return [200, 90, 60];
+  return [40 + 60 * y, 30 + 40 * x, 70];
+});
 
 export function wikiFalsa() {
   return createServer((req, res) => {
@@ -44,6 +48,22 @@ export function wikiFalsa() {
       const t = q.get('titles');
       const thumb = t === 'Centopeia' ? { source: `http://${req.headers.host}/img/centopeia.png` } : undefined;
       return res.end(JSON.stringify({ query: { pages: { 1: { title: t, thumbnail: thumb } } } }));
+    }
+    // outras fotos do artigo: duas boas, um icone e uma pequena (as duas ultimas ficam de fora)
+    if (q.get('generator') === 'images') {
+      const h = `http://${req.headers.host}`;
+      const img = (title, w, h2, url) => ({ title, imageinfo: [{ mime: 'image/png', width: w, height: h2, thumburl: url }] });
+      const pages = q.get('titles') !== 'Centopeia' ? {} : {
+        1: img('Ficheiro:Centopeia no solo.png', 1600, 1000, `${h}/img/solo.png`),
+        2: img('Ficheiro:Centopeia de perto.png', 1200, 900, `${h}/img/perto.png`),
+        3: img('Ficheiro:Commons-logo.png', 1200, 900, `${h}/img/logo.png`),
+        4: img('Ficheiro:Miniatura.png', 120, 90, `${h}/img/mini.png`),
+      };
+      return res.end(JSON.stringify({ query: { pages } }));
+    }
+    if (u.pathname.startsWith('/img/') && u.pathname !== '/img/centopeia.png') {
+      res.setHeader('content-type', 'image/png');
+      return res.end(u.pathname === '/img/perto.png' ? PNG2 : PNG);
     }
     if (u.pathname === '/img/centopeia.png') {
       res.setHeader('content-type', 'image/png');
