@@ -10,11 +10,16 @@
 <body>
   <main class="tv" id="tv" aria-label="Quadro de curiosidades">
     <div id="fundos"></div>
+    <div class="vinheta"></div>
 
     <section class="quadro" id="quadro">
-      <div class="foto" id="fotos"><span class="onde" id="onde" hidden></span></div>
+      <div class="foto" id="fotos">
+        <div class="sombra"></div>
+        <span class="onde" id="onde" hidden></span>
+        <div class="miniaturas" id="miniaturas"></div>
+      </div>
       <div class="texto" id="texto">
-        <span class="chip" id="chip">Curiosidade</span>
+        <div class="topo"><span class="sabia">Você sabia?</span><span class="chip" id="chip">Curiosidade</span></div>
         <h1 id="titulo">As criaturas estão caçando</h1>
         <p id="desc">A primeira curiosidade aparece aqui assim que uma criatura do Terrário voltar da caçada.</p>
         <div class="num" id="num" hidden><b id="numero"></b><span id="legenda"></span></div>

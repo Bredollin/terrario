@@ -20,7 +20,7 @@ const app = criarServidor({ saida: pasta, cacar: criarCacador({ wiki: base, busc
   quadro: { wiki: base, clima: { url: `${base}/v1/forecast` } } });
 const url = await ouvir(app);
 // algumas cacadas antes de abrir a tela
-for (const [criatura, tema] of [['Odin', 'centopeia'], ['Mimir', 'artropode'], ['Thoth', 'polvos']])
+for (const [criatura, tema] of [['Mimir', 'artropode'], ['Thoth', 'Polvo'], ['Odin', 'centopeia']])
   await fetch(`${url}/api/cacar`, { method: 'POST', body: JSON.stringify({ criatura, tema }) });
 
 const nav = await chromium.launch();
@@ -35,11 +35,13 @@ for (const [w, h, nome] of [[1920, 1080, '10-quadro.png'], [1366, 768, '11-quadr
     const caixa = s => document.querySelector(s).getBoundingClientRect();
     const q = caixa('.quadro'), d = caixa('.data'), c = caixa('.canto');
     return { fichas: quadro.fichas.length, titulo: document.getElementById('titulo').textContent,
-      clima: document.getElementById('tempo').textContent, encosta: d.left < q.right || c.left < q.right };
+      clima: document.getElementById('tempo').textContent, encosta: d.left < q.right || c.left < q.right,
+      miniaturas: document.querySelectorAll('#miniaturas span').length };
   });
   console.log(nome, r);
   if (r.encosta) throw new Error('data/hora encostando no quadro');
   if (!r.clima.includes('27°')) throw new Error('clima nao apareceu');
+  if (r.titulo === 'Centopeia' && r.miniaturas !== 3) throw new Error('fotos do tema nao apareceram');
   await pag.screenshot({ path: join(saida, nome) });
   await pag.close();
 }

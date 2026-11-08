@@ -2,16 +2,19 @@
 // fichas para a TV da sala (foto, nome, duas frases e um numero curioso).
 // Le so a pasta de conhecimento do proprio terrario. A foto vem da Wikipedia
 // do tema e o clima do Open-Meteo (sem chave).
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { slug } from './cacador.mjs';
+import { LISTA_SALA } from '../public/temas-sala.js';
 
 // Frases para a TV: so corta no ponto seguido de espaco e maiuscula (10.582 km² fica inteiro).
 export function frases(texto) {
   return String(texto).replace(/\s+/g, ' ').trim().split(/(?<=[.!?])\s+(?=[\p{Lu}"“(\d])/u).map(s => s.trim()).filter(Boolean);
 }
 
-const UA = 'Terrario/0.5 (quadro de curiosidades; github.com/Bredollin/terrario)';
+const VERSAO = 2; // muda quando a ficha ganha campos novos (refaz o cache)
+const CATEGORIA = new Map(LISTA_SALA.map(t => [slug(t.tema), t.categoria]));
+const UA = 'Terrario/0.6 (quadro de curiosidades; github.com/Bredollin/terrario)';
 
 async function baixar(url, { timeout = 10000, limite = 4_000_000 } = {}) {
   const r = await fetch(url, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(timeout), redirect: 'follow' });
@@ -71,27 +74,55 @@ export async function fichaComIA(c, { chave, modelo = 'claude-sonnet-5-5' }) {
     numero: s(j.numero, 24), numeroLegenda: s(j.numeroLegenda, 60) };
 }
 
-// Foto principal do artigo da Wikipedia citado nas fontes.
-export async function fotoDaWiki(fontes, { wiki }) {
+const RUIM = /(icon|logo|flag|bandeira|mapa|map|locator|location|commons|wiki|symbol|simbolo|brasao|coat_of_arms|signature|assinatura|disambig|edit-|question|padlock)/i;
+
+function extensao(tipo) {
+  return tipo.includes('png') ? 'png' : tipo.includes('webp') ? 'webp' : tipo.includes('jpeg') || tipo.includes('jpg') ? 'jpg' : '';
+}
+
+// Ate `max` fotos do artigo da Wikipedia citado nas fontes: a principal primeiro,
+// depois as outras fotos grandes do artigo (sem icones, mapas, bandeiras, svg).
+export async function fotosDaWiki(fontes, { wiki, max = 4 }) {
   const base = new URL(wiki);
   for (const f of fontes) {
     let u; try { u = new URL(f); } catch { continue; }
     const daWiki = u.origin === base.origin || /(^|\.)wikipedia\.org$/.test(u.hostname);
     if (!daWiki || !u.pathname.startsWith('/wiki/')) continue;
     const titulo = decodeURIComponent(u.pathname.slice(6)).replace(/_/g, ' ');
-    const api = new URL('/w/api.php', u.origin);
-    api.search = new URLSearchParams({ action: 'query', prop: 'pageimages', piprop: 'thumbnail', pithumbsize: '1280',
-      titles: titulo, format: 'json', origin: '*' });
-    const pags = Object.values(JSON.parse((await baixar(api)).buf.toString()).query?.pages ?? {});
-    const src = pags[0]?.thumbnail?.source;
-    if (!src) continue;
-    const s = new URL(src, u.origin);
-    if (s.hostname !== 'upload.wikimedia.org' && s.origin !== base.origin) continue;
-    const { tipo, buf } = await baixar(s);
-    const ext = tipo.includes('png') ? 'png' : tipo.includes('webp') ? 'webp' : tipo.includes('jpeg') || tipo.includes('jpg') ? 'jpg' : '';
-    if (ext) return { ext, buf };
+    const api = (q) => { const a = new URL('/w/api.php', u.origin); a.search = new URLSearchParams({ ...q, format: 'json', origin: '*' }); return a; };
+    const urls = [];
+    try {
+      const pags = Object.values(JSON.parse((await baixar(api({ action: 'query', prop: 'pageimages', piprop: 'thumbnail',
+        pithumbsize: '1280', titles: titulo }))).buf.toString()).query?.pages ?? {});
+      if (pags[0]?.thumbnail?.source) urls.push(pags[0].thumbnail.source);
+    } catch {}
+    try {
+      const imgs = Object.values(JSON.parse((await baixar(api({ action: 'query', generator: 'images', gimlimit: '30', titles: titulo,
+        prop: 'imageinfo', iiprop: 'url|size|mime', iiurlwidth: '1280' }))).buf.toString()).query?.pages ?? {});
+      for (const i of imgs) {
+        const inf = i.imageinfo?.[0];
+        if (!inf || !/jpeg|png/.test(inf.mime ?? '') || (inf.width ?? 0) < 800 || (inf.height ?? 0) < 500) continue;
+        if (RUIM.test(i.title ?? '') || !inf.thumburl) continue;
+        urls.push(inf.thumburl);
+      }
+    } catch {}
+    const fotos = [], vistas = new Set();
+    for (const src of urls) {
+      if (fotos.length >= max) break;
+      const s = new URL(src, u.origin);
+      const chaveFoto = decodeURIComponent(s.pathname).replace(/^.*\//, '').replace(/^\d+px-/, '');
+      if (vistas.has(chaveFoto)) continue;
+      vistas.add(chaveFoto);
+      if (s.hostname !== 'upload.wikimedia.org' && s.origin !== base.origin) continue;
+      try {
+        const { tipo, buf } = await baixar(s);
+        const ext = extensao(tipo);
+        if (ext) fotos.push({ ext, buf });
+      } catch {}
+    }
+    if (fotos.length) return fotos;
   }
-  return null;
+  return [];
 }
 
 export function criarQuadro({ saida, wiki = 'https://pt.wikipedia.org', chave = '', modelo, clima = {} }) {
@@ -101,16 +132,22 @@ export function criarQuadro({ saida, wiki = 'https://pt.wikipedia.org', chave = 
   async function ficha(arquivo) {
     const json = join(cache, arquivo.replace(/\.md$/, '.json'));
     const pronta = await readFile(json, 'utf8').then(JSON.parse, () => null);
-    if (pronta) return pronta;
+    if (pronta?.v === VERSAO) return pronta;
     const c = lerCacada(await readFile(join(saida, arquivo), 'utf8'));
     let f = fichaExtrativa(c), fonte = 'extrativo';
     if (chave) { try { f = await fichaComIA(c, { chave, modelo }); fonte = 'ia'; } catch {} }
-    let imagem = '';
+    if (f.categoria === 'Curiosidade' && CATEGORIA.has(slug(c.tema))) f.categoria = CATEGORIA.get(slug(c.tema));
+    const imagens = [];
     try {
-      const foto = await fotoDaWiki(c.fontes, { wiki });
-      if (foto) { imagem = `${slug(arquivo.replace(/\.md$/, ''))}.${foto.ext}`; await mkdir(cache, { recursive: true }); await writeFile(join(cache, imagem), foto.buf); }
+      const fotos = await fotosDaWiki(c.fontes, { wiki });
+      await mkdir(cache, { recursive: true });
+      for (const [i, foto] of fotos.entries()) {
+        const nome = `${slug(arquivo.replace(/\.md$/, ''))}-${i + 1}.${foto.ext}`;
+        await writeFile(join(cache, nome), foto.buf);
+        imagens.push(`/api/quadro/imagem/${nome}`);
+      }
     } catch {}
-    const pronto = { id: arquivo, ...f, criatura: c.criatura, data: c.data, fonte, imagem: imagem && `/api/quadro/imagem/${imagem}`,
+    const pronto = { v: VERSAO, id: arquivo, ...f, tema: c.tema, criatura: c.criatura, data: c.data, fonte, imagens, imagem: imagens[0] ?? '',
       origem: c.fontes[0] ? new URL(c.fontes[0]).hostname.replace(/^www\./, '') : '' };
     await mkdir(cache, { recursive: true });
     await writeFile(json, JSON.stringify(pronto));
@@ -118,16 +155,22 @@ export function criarQuadro({ saida, wiki = 'https://pt.wikipedia.org', chave = 
   }
 
   // Ate `novas` fichas novas por chamada, para a tela nao esperar demais.
-  async function listar({ max = 30, novas = 3 } = {}) {
-    const nomes = (await readdir(saida).catch(() => [])).filter(n => n.endsWith('.md')).sort().reverse().slice(0, max);
-    const out = []; let feitas = 0;
+  // Tema repetido aparece uma vez so (a cacada mais nova).
+  async function listar({ max = 80, novas = 3 } = {}) {
+    // mais nova primeiro (pela hora do arquivo; o nome so tem o dia)
+    const mds = (await readdir(saida).catch(() => [])).filter(n => n.endsWith('.md'));
+    const nomes = (await Promise.all(mds.map(async n => [n, (await stat(join(saida, n)).catch(() => ({ mtimeMs: 0 }))).mtimeMs])))
+      .sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0])).map(([n]) => n);
+    const out = [], temas = new Set(); let feitas = 0;
+    const entra = f => { const k = slug(f.tema || f.titulo); if (temas.has(k)) return; temas.add(k); out.push(f); };
     for (const n of nomes) {
+      if (out.length >= max) break;
       const existe = await readFile(join(cache, n.replace(/\.md$/, '.json')), 'utf8').then(JSON.parse, () => null);
-      if (existe) { out.push(existe); continue; }
+      if (existe?.v === VERSAO) { entra(existe); continue; }
       if (feitas >= novas) continue;
       feitas++;
       if (!emAndamento.has(n)) emAndamento.set(n, ficha(n).finally(() => emAndamento.delete(n)));
-      try { out.push(await emAndamento.get(n)); } catch {}
+      try { entra(await emAndamento.get(n)); } catch {}
     }
     return out;
   }
