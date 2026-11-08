@@ -4,11 +4,14 @@
 # cage (um compositor Wayland de uma janela so). Rode no console (tty), logado.
 #
 #   ./terrario-quiosque.sh          abre o terrario na tela
+#   ./terrario-quiosque.sh quadro   abre o quadro de curiosidades (TV da sala)
 #   ./terrario-quiosque.sh parar    fecha (pode ser por SSH)
 #
 # Precisa de: nodejs (20+), cage e chromium.
 # Variaveis: TERRARIO_SAIDA (markdown; padrao ~/terrario/conhecimento),
-# PORT (padrao 4747), TERRARIO_INTERVALO (segundos entre cacadas; padrao 180).
+# PORT (padrao 4747), TERRARIO_INTERVALO (segundos entre cacadas; padrao 180),
+# TERRARIO_TROCA (segundos por curiosidade no quadro; padrao 60),
+# TERRARIO_LAT/TERRARIO_LON (clima do quadro; padrao Goiania).
 set -eu
 
 AQUI=$(cd "$(dirname "$0")/.." && pwd)
@@ -16,6 +19,9 @@ PORTA=${PORT:-4747}
 ESTADO=${XDG_STATE_HOME:-$HOME/.local/state}/terrario
 SAIDA=${TERRARIO_SAIDA:-$HOME/terrario/conhecimento}
 INTERVALO=${TERRARIO_INTERVALO:-180}
+TROCA=${TERRARIO_TROCA:-60}
+TELA="/?quiosque&intervalo=$INTERVALO"
+[ "${1:-}" = quadro ] && TELA="/quadro.html?intervalo=$INTERVALO&troca=$TROCA"
 
 if [ "${1:-}" = parar ]; then
   pkill -u "$(id -u)" -f "cage -- .*127.0.0.1:$PORTA" && echo "Terrario fechado." || echo "Terrario nao estava aberto."
@@ -53,4 +59,4 @@ echo "Terrario no ar. Markdown em $SAIDA. Para fechar: $0 parar"
 cage -- chromium --kiosk --noerrdialogs --disable-infobars --no-first-run \
   --disable-session-crashed-bubble --disable-features=Translate \
   --ozone-platform=wayland --user-data-dir="$ESTADO/chromium" \
-  "http://127.0.0.1:$PORTA/?quiosque&intervalo=$INTERVALO"
+  "http://127.0.0.1:$PORTA$TELA"
